@@ -1,6 +1,6 @@
 """Horizontal DXF transformation. Same engine runs in CPython tests and Pyodide.
 
-Fail closed: no export if any model-space object cannot be accounted for.
+Entity failures are omitted atomically and require explicit partial-export consent.
 Export is a NEW model-space drawing, not a lossless CAD document migration.
 """
 import io
@@ -15,10 +15,12 @@ from ezdxf import path, bbox
 from ezdxf.math import Vec3, Matrix44
 from ezdxf.addons import Importer
 from ezdxf.explode import attrib_to_text
+from ezdxf.layouts import VirtualLayout
 from pyproj import Transformer, network
+from preflight import read_document, inspect_document, issue
 
 network.set_network_enabled(False)
-VERSION = "26.09.1.0"
+VERSION = "26.09.2.0"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
@@ -61,10 +63,12 @@ def inspect_grid(filename):
 
 
 class Conversion:
-    def __init__(self, source, grid, tolerance=0.005):
+    def __init__(self, source, grid, tolerance=0.005, options=None, audit=None):
         if not math.isfinite(tolerance) or not 0.001 <= tolerance <= 0.1:
             raise ValueError("Tolerance must be 0.001–0.1 m.")
         self.source = source
+        self.options = options or {}
+        self.audit = audit or {"errors": 0, "repairs": 0, "recovered": False, "findings": []}
         self.tol = tolerance
         self.tr = make_transform(grid)
         self.geo = Transformer.from_crs(25832, 4326, always_xy=True)
@@ -75,6 +79,12 @@ class Conversion:
         self.msp = self.output.modelspace()
         self.warnings = Counter()
         self.blockers = []
+        self.omitted = []
+        self.preview_meta = []
+        self.current_meta = {}
+        self.successful_sources = 0
+        self.failed_sources = 0
+        self.selected_omissions = 0
         self.converted = Counter()
         self.preview = []
         self.samples = []
@@ -159,6 +169,7 @@ class Conversion:
             if points and sampled[-1] != points[-1]:
                 sampled.append(points[-1])
             self.preview.append([[p.x, p.y] for p in sampled])
+            self.preview_meta.append(self.current_meta.copy())
 
     def poly(self, points, attrs, close=False):
         pts = self.line_points(points)
@@ -177,6 +188,9 @@ class Conversion:
             raise ValueError("Drawing exceeds entity budget.")
         e = entity.copy()
         typ = e.dxftype()
+        if typ == "POINT" and self.options.get("excludePoints", False):
+            self.warnings["nestedPoints"] += 1
+            return
         if typ not in SUPPORTED:
             raise ValueError(f"Unsupported object: {typ}")
         if inherited:
@@ -312,21 +326,51 @@ class Conversion:
     def run(self):
         if self.source.units not in (0, 6):
             self.blockers.append({"type": "UNITS", "handle": "HEADER", "layer": "—", "message": "$INSUNITS is not metres or unspecified. Rescale the source drawing first."})
-        auditor = self.source.audit()
-        if auditor.errors or auditor.fixes:
-            self.blockers.append({"type": "AUDIT", "handle": "DOCUMENT", "layer": "—", "message": f"Input audit: {len(auditor.errors)} errors, {len(auditor.fixes)} repairs. Repair and save the source in CAD first."})
         if self.source.units == 0:
             self.warnings["units"] += 1
         paper_count = sum(len(layout) for layout in self.source.layouts if layout.name != "Model")
         if paper_count:
             self.warnings["paperspace"] = paper_count
-        for e in self.source.modelspace():
+        selected = self.options.get("selectedIds")
+        selected = set(selected) if selected is not None else None
+        target = self.msp
+        for index, e in enumerate(self.source.modelspace()):
+            ident = f"e{index}"
+            reason = None
+            if selected is not None and ident not in selected:
+                reason = "Deselected in preflight (group / layer / object selection)."
+            elif self.options.get("excludePoints", False) and e.dxftype() == "POINT":
+                reason = "POINT objects deselected before transformation."
+            if reason:
+                self.selected_omissions += 1
+                self.omitted.append({**issue(e, reason), "id": ident, "category": "selection"})
+                continue
+            # Per-source staging prevents half-converted blocks, hatches or polylines.
+            stage = VirtualLayout()
+            self.msp = stage
+            self.current_meta = {"id": ident, "handle": e.dxf.get("handle", "—"), "layer": e.dxf.layer, "type": e.dxftype()}
+            preview_len, sample_len = len(self.preview), len(self.samples)
+            saved_bounds = (self.input_bounds[:], self.output_bounds[:])
+            saved_warnings, saved_counts = self.warnings.copy(), self.converted.copy()
+            target_count, moving = len(target), False
             try:
                 self.entity(e)
+                moving = True
+                stage.move_all_to_layout(target)
+                self.successful_sources += 1
             except Exception as error:
-                self.blockers.append({"type": e.dxftype(), "handle": e.dxf.handle or "—", "layer": e.dxf.layer, "message": str(error)})
-                if len(self.blockers) >= 100:
-                    break
+                if moving:
+                    for partial in list(islice(target, target_count, None)):
+                        target.delete_entity(partial)
+                self.failed_sources += 1
+                self.omitted.append({**issue(e, error), "id": ident, "category": "conversion"})
+                del self.preview[preview_len:]
+                del self.preview_meta[preview_len:]
+                del self.samples[sample_len:]
+                self.input_bounds, self.output_bounds = saved_bounds
+                self.warnings, self.converted = saved_warnings, saved_counts
+            finally:
+                self.msp = target
         if not len(self.msp):
             self.blockers.append({"type": "EMPTY", "handle": "—", "layer": "—", "message": "No exportable model-space geometry."})
         self.output.units = 6
@@ -335,16 +379,20 @@ class Conversion:
         b = self.output_bounds
         if all(math.isfinite(v) for v in b):
             self.output.set_modelspace_vport(height=max(20, b[3]-b[1])*1.2, center=((b[0]+b[2])/2, (b[1]+b[3])/2))
-        report = {"version": VERSION, "sourceCRS": "EPSG:31468", "targetCRS": "EPSG:25832", "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if self.count else None, "targetBounds": self.output_bounds if self.count else None, "preview": self.preview, "supported": sorted(SUPPORTED)}
-        if self.count:
-            report["geographicBounds"] = [list(self.geo.transform(b[0], b[1])), list(self.geo.transform(b[2], b[3]))]
+        valid_bounds = all(math.isfinite(v) for v in b)
+        requires_confirmation = bool(self.omitted or self.audit["errors"] or self.audit["repairs"] or self.audit["recovered"] or self.warnings.get("nestedPoints"))
+        report = {"version": VERSION, "sourceCRS": "EPSG:31468", "targetCRS": "EPSG:25832", "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if valid_bounds else None, "targetBounds": self.output_bounds if valid_bounds else None, "preview": self.preview, "supported": sorted(SUPPORTED),
+                  "omitted": self.omitted, "audit": self.audit, "requiresConfirmation": requires_confirmation, "successfulSources": self.successful_sources, "failedSources": self.failed_sources, "selectedOmissions": self.selected_omissions, "previewMeta": self.preview_meta, "previewLimited": len(self.preview) >= 1500, "geographicPreview": []}
+        if valid_bounds:
+            corners = [self.geo.transform(x,y) for x in [b[0],b[2]] for y in [b[1],b[3]]]
+            report["geographicBounds"] = [[min(p[0] for p in corners),min(p[1] for p in corners)], [max(p[0] for p in corners),max(p[1] for p in corners)]]
+            report["geographicPreview"] = [[list(self.geo.transform(*p)) for p in line] for line in self.preview]
         return report
 
 
-def process_file(filename, grid, tolerance=0.005):
+def process_document(source, grid, tolerance=0.005, options=None, audit=None):
     metadata = inspect_grid(grid)
-    source = ezdxf.readfile(filename)
-    conversion = Conversion(source, grid, tolerance)
+    conversion = Conversion(source, grid, tolerance, options, audit)
     report = conversion.run()
     report["grid"] = metadata
     output = None
@@ -357,6 +405,11 @@ def process_file(filename, grid, tolerance=0.005):
             conversion.output.write(stream)
             output = stream.getvalue()
     return report, output
+
+
+def process_file(filename, grid, tolerance=0.005, options=None):
+    source, audit = read_document(filename)
+    return process_document(source, grid, tolerance, options, audit)
 
 
 def demo_file(filename):

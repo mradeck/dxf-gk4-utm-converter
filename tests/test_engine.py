@@ -104,7 +104,7 @@ def test_dimension(tmp_path):
 
 
 @pytest.mark.parametrize("case",["wrong_coords","swapped","utm","wide","nonuniform","unsupported","xref","thickness"])
-def test_fail_closed(tmp_path,case):
+def test_partial_export_with_explicit_omission_report(tmp_path,case):
     def draw(doc,m):
         m.add_point((X,Y,7))
         if case=="wrong_coords":m.add_point((10,20))
@@ -120,8 +120,12 @@ def test_fail_closed(tmp_path,case):
             m.add_blockref("XREF",(X,Y))
         if case=="thickness":m.add_circle((X,Y),10,dxfattribs={"thickness":2})
     r,out=convert(tmp_path,draw)
-    assert r["blockers"]
-    assert out is None
+    assert not r["blockers"]
+    assert r["requiresConfirmation"]
+    assert r["failedSources"] == 1
+    assert r["omitted"][0]["category"] == "conversion"
+    assert len(out.modelspace()) == 1
+    assert not out.audit().errors
 
 
 def test_units_reject_and_unknown(tmp_path):

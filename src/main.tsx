@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowDownToLine,
@@ -24,6 +24,14 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
+import { PreflightPanel } from "./PreflightPanel";
+import {
+  initialSelection,
+  selectedEntries,
+  type Inventory,
+  type Selection,
+  type Audit,
+} from "./selection";
 
 type Issue = { type: string; handle: string; layer: string; message: string };
 type Report = {
@@ -33,16 +41,25 @@ type Report = {
   dxfVersion: string;
   warnings: Record<string, number>;
   blockers: Issue[];
+  omitted: (Issue & { id: string; category: string })[];
+  audit: Audit;
+  requiresConfirmation: boolean;
+  successfulSources: number;
+  failedSources: number;
+  selectedOmissions: number;
   outputEntities: number;
   evaluations: number;
   preview: number[][][];
+  geographicPreview: number[][][];
+  previewMeta: Issue[];
+  previewLimited: boolean;
   sourceBounds: number[] | null;
   targetBounds: number[] | null;
   geographicBounds?: [number[], number[]];
   grid: { from: string; to: string; subgrids: number; sha256: string };
   samples: { source: number[]; target: number[] }[];
 };
-const VERSION = "26.09.1.0";
+const VERSION = "26.09.2.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -71,7 +88,9 @@ const dict = {
     grid: "Gitterdatei auswählen",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · bis 256 MB",
     tolerance: "Kurven-Segmentierung",
-    analyze: "Analysieren & vorbereiten",
+    inspect: "Datei prüfen",
+    analyze: "Auswahl transformieren",
+    inspecting: "Objekte zählen und räumliche Gruppen prüfen …",
     cancel: "Abbrechen",
     runtime: "Browser-Rechenkern wird geladen …",
     libraries: "CAD- und Geodäsie-Bibliotheken werden geladen …",
@@ -79,7 +98,7 @@ const dict = {
     initialLoad:
       "Beim ersten Start werden Bibliotheken vom CDN geladen. Deine DXF- und Gitterdateien verlassen den Browser nicht.",
     preview: "Planvorschau",
-    map: "Lagekarte",
+    map: "DXF auf Karte",
     empty: "Hier bekommt dein Plan neue Koordinaten.",
     emptyHint: "Wähle eine DXF-Datei oder starte mit dem Beispielplan.",
     viewHint: "UTM32 · vereinfachte Vorschau · nicht maßstäblich",
@@ -108,12 +127,12 @@ const dict = {
     imprint: "Impressum",
     made: "Ein Werkzeug von Michael Radeck",
     privacy: "Lokal verarbeitet. Keine Analyse-Tracker.",
-    mapConsent: "Karte laden",
+    mapConsent: "OSM-Hintergrund laden",
     mapPrivacy:
       "Erst beim Laden werden OpenStreetMap-Kacheln abgerufen. Dabei werden IP-Adresse und Kartenausschnitt an den Kartenanbieter übermittelt.",
     noMap: "Noch keine gültige Ausdehnung vorhanden.",
     methodHelp:
-      "EPSG beschreibt das Koordinatensystem, nicht das konkrete Transformationsverfahren. NTv2 enthält ortsabhängige Verschiebungen zwischen DHDN und ETRS89. Ohne gültige Gitterabdeckung wird der Export abgebrochen – es gibt keinen stillen Ersatz durch eine ungenauere Methode.",
+      "EPSG beschreibt das Koordinatensystem, nicht das konkrete Transformationsverfahren. NTv2 enthält ortsabhängige Verschiebungen zwischen DHDN und ETRS89. Objekte außerhalb der Gitterabdeckung werden mit Hinweis ausgelassen; der Teil-Export erfordert deine Bestätigung. Es gibt keinen stillen Ersatz durch eine ungenauere Methode.",
     toleranceHelp:
       "Bögen, Kreise, Splines und Polylinien werden als 3D-Polylinien exportiert. Die Einstellung steuert die Segmentierung (Standard 5 mm); sie ist keine Aussage zur absoluten Lagegenauigkeit. Geraden werden bei Bedarf zusätzlich unterteilt. Flächen und Netze behalten ihre Topologie; ihre Innenflächen werden nicht verdichtet.",
     fileHelp:
@@ -121,7 +140,7 @@ const dict = {
     crsHelp:
       "GK4: DHDN / Bessel, Mittelmeridian 12°, 3°-Streifen. UTM32: ETRS89 / GRS80, Mittelmeridian 9°, 6°-Zone. Ausgabe ohne vorangestellte Zonenziffer 32. Z-Werte werden weder in der Höhe noch im Höhenbezug geändert.",
     limits:
-      "Unterstützt: Punkte, Linien, 2D-/3D-Polylinien, Bögen, Kreise, Ellipsen, Splines, Texte, ebene Schraffuren, 3D-Flächen/Netze, einfache und verschachtelte gleichmäßig skalierte Blöcke sowie darstellbare Bemaßungen/Multileader. Sonderfälle sperren den gesamten Export: unter anderem XREF, Proxy-/ACIS-Objekte, breite Polylinien, XCLIP, gespiegelte/ungleichmäßig skalierte Blöcke und gekippte Texte. Keine DWG-Dateien.",
+      "Unterstützt: Punkte, Linien, 2D-/3D-Polylinien, Bögen, Kreise, Ellipsen, Splines, Texte, ebene Schraffuren, 3D-Flächen/Netze, gleichmäßig skalierte Blöcke sowie darstellbare Bemaßungen/Multileader. Nicht sicher übertragbare Objekte werden protokolliert und nach Bestätigung ausgelassen, etwa XREF, Proxy-/ACIS-Objekte, breite Polylinien, XCLIP und gespiegelte/ungleichmäßig skalierte Blöcke. Ein betroffener Block wird vollständig ausgelassen. Falsche Einheiten, ungültige Gitter, unlesbare Dateien oder fehlerhafte/leere Ausgaben bleiben gesperrt. Keine DWG-Dateien.",
     modelHelp:
       "Es entsteht eine neue DXF R2018 mit Modellbereich, Layern, Linientypen und Textstilen. Papierlayouts, Viewports, Abhängigkeiten, benutzerdefinierte Metadaten und editierbare Block-/Bemaßungslogik werden nicht übernommen. Texte und Bemaßungszahlen werden nicht inhaltlich neu berechnet. CAD-Schriften müssen im Zielprogramm vorhanden sein.",
     newGrid: "Eigenes Gitter erstellen?",
@@ -134,7 +153,7 @@ const dict = {
     readyHint:
       "Die unterstützte Geometrie ist vorbereitet. Hinweise bestätigen, dann herunterladen.",
     invalidHint:
-      "Mindestens ein Objekt kann nicht sicher übertragen werden. Bitte die aufgelisteten Objekte in CAD bereinigen. Kein Teil-Export.",
+      "Ein grundlegender Fehler verhindert eine sichere Ausgabe. Bitte die aufgelisteten Prüfmeldungen beachten. Einzelne Objektfehler allein sperren den übrigen Export nicht.",
     noSource: "Bitte zuerst eine DXF-Datei auswählen.",
     missingGrid: "Bitte eine NTv2-Gitterdatei auswählen.",
     gridLarge:
@@ -172,7 +191,9 @@ const dict = {
     grid: "Choose grid file",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · up to 256 MB",
     tolerance: "Curve segmentation",
-    analyze: "Analyze & prepare",
+    inspect: "Inspect file",
+    analyze: "Transform selection",
+    inspecting: "Counting objects and checking spatial groups …",
     cancel: "Cancel",
     runtime: "Loading the browser runtime …",
     libraries: "Loading CAD and geodesy libraries …",
@@ -180,7 +201,7 @@ const dict = {
     initialLoad:
       "The first run loads libraries from a CDN. Your DXF and grid files never leave your browser.",
     preview: "Drawing preview",
-    map: "Location map",
+    map: "DXF on map",
     empty: "A new coordinate system for your drawing.",
     emptyHint: "Choose a DXF file or try the sample drawing.",
     viewHint: "UTM32 · simplified preview · not to scale",
@@ -209,12 +230,12 @@ const dict = {
     imprint: "Legal notice",
     made: "A tool by Michael Radeck",
     privacy: "Locally processed. No analytics trackers.",
-    mapConsent: "Load map",
+    mapConsent: "Load OSM background",
     mapPrivacy:
       "OpenStreetMap tiles are only requested when enabled. This sends your IP address and the map area to the tile provider.",
     noMap: "No valid extent available yet.",
     methodHelp:
-      "EPSG identifies a coordinate system, not the specific transformation operation. NTv2 stores location-dependent shifts between DHDN and ETRS89. Export stops outside grid coverage; there is no silent fallback to a less accurate method.",
+      "EPSG identifies a coordinate system, not the specific transformation operation. NTv2 stores location-dependent shifts between DHDN and ETRS89. Objects outside grid coverage are reported and omitted; partial export requires your confirmation. There is no silent fallback to a less accurate method.",
     toleranceHelp:
       "Arcs, circles, splines and polylines are exported as 3D polylines. This setting controls segmentation (default 5 mm), not absolute positional accuracy. Lines are subdivided where needed. Faces and meshes retain their topology; their interiors are not densified.",
     fileHelp:
@@ -222,7 +243,7 @@ const dict = {
     crsHelp:
       "GK4: DHDN / Bessel, central meridian 12°, 3° strip. UTM32: ETRS89 / GRS80, central meridian 9°, 6° zone. Output has no leading zone number 32. Z values and the vertical datum are unchanged.",
     limits:
-      "Supported: points, lines, 2D/3D polylines, arcs, circles, ellipses, splines, text, horizontal hatches, 3D faces/meshes, simple and nested uniformly scaled blocks, and renderable dimensions/multileaders. Special cases block the entire export, including XREF, proxy/ACIS objects, wide polylines, XCLIP, mirrored/non-uniform blocks and tilted text. No DWG files.",
+      "Supported: points, lines, 2D/3D polylines, arcs, circles, ellipses, splines, text, horizontal hatches, 3D faces/meshes, uniformly scaled blocks and renderable dimensions/multileaders. Objects that cannot be safely converted are reported and omitted after confirmation, including XREF, proxy/ACIS objects, wide polylines, XCLIP and mirrored/non-uniform blocks. An affected block is omitted entirely. Wrong units, invalid grids, unreadable files and invalid/empty outputs still block export. No DWG files.",
     modelHelp:
       "Creates a new R2018 DXF containing model space, layers, line types and text styles. Paper layouts, viewports, dependencies, custom metadata and editable block/dimension logic are not retained. Text content and dimension labels are not recalculated. CAD fonts must be available in the target program.",
     newGrid: "Create a custom grid?",
@@ -235,7 +256,7 @@ const dict = {
     readyHint:
       "Supported geometry is ready. Acknowledge the notes to download.",
     invalidHint:
-      "At least one object cannot be safely converted. Resolve the listed objects in CAD first. No partial export.",
+      "A fundamental error prevents safe output. Review the listed messages. Individual object failures alone do not block the remaining export.",
     noSource: "Please select a DXF file first.",
     missingGrid: "Please select an NTv2 grid file.",
     gridLarge: "Grid exceeds 256 MB. Please use a smaller regional extract.",
@@ -285,6 +306,10 @@ const warnings: Record<string, [string, string]> = {
     "Objekt-Zusatzdaten werden entfernt",
     "Custom entity data removed",
   ],
+  nestedPoints: [
+    "POINTs innerhalb von Blöcken bewusst ausgelassen",
+    "POINTs inside blocks intentionally omitted",
+  ],
 };
 function Info({
   title,
@@ -313,28 +338,55 @@ function save(contents: string, name: string, type = "text/plain") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function MapView({ bounds }: { bounds: [number[], number[]] }) {
+function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
-    const map = L.map(ref.current).fitBounds(
-      bounds.map((p) => [p[1], p[0]]) as L.LatLngBoundsExpression,
+    const map = L.map(ref.current, { preferCanvas: true }).fitBounds(
+      report.geographicBounds!.map((p) => [
+        p[1],
+        p[0],
+      ]) as L.LatLngBoundsExpression,
       { maxZoom: 17, padding: [35, 35] },
     );
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(map);
-    L.rectangle(bounds.map((p) => [p[1], p[0]]) as L.LatLngBoundsExpression, {
-      color: "#228068",
-      weight: 2,
-      fillOpacity: 0.12,
-    }).addTo(map);
+    if (basemap)
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+    report.geographicPreview.forEach((points, i) => {
+      const latlngs = points.map((p) => [p[1], p[0]] as L.LatLngTuple);
+      if (!latlngs.length) return;
+      const layer =
+        latlngs.length === 1
+          ? L.circleMarker(latlngs[0], {
+              radius: 3,
+              color: "#752db3",
+              weight: 1,
+              fillOpacity: 0.8,
+            })
+          : L.polyline(latlngs, {
+              color: "#c12862",
+              weight: 2.5,
+              opacity: 0.9,
+            });
+      const meta = report.previewMeta[i];
+      if (meta) {
+        const label = document.createElement("span");
+        label.textContent = `${meta.type} · ${meta.layer} · #${meta.handle}`;
+        layer.bindTooltip(label);
+      }
+      layer.addTo(map);
+    });
+    L.control.scale({ imperial: false }).addTo(map);
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(ref.current);
     return () => {
+      observer.disconnect();
       map.remove();
     };
-  }, [bounds]);
+  }, [report, basemap]);
   return <div className="map" ref={ref} />;
 }
 function Drawing({ report }: { report: Report }) {
@@ -387,11 +439,19 @@ function App() {
   const [method, setMethod] = useState("beta");
   const [tol, setTol] = useState("0.005");
   const [report, setReport] = useState<Report | null>(null);
+  const [inventory, setInventory] = useState<Inventory | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [inventoryKey, setInventoryKey] = useState(0);
+  const selected = useMemo(
+    () => (inventory && selection ? selectedEntries(inventory, selection) : []),
+    [inventory, selection],
+  );
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("runtime");
   const [error, setError] = useState("");
   const [ack, setAck] = useState(false);
-  const [tab, setTab] = useState("drawing");
+  const [omissionAck, setOmissionAck] = useState(false);
+  const [tab, setTab] = useState("map");
   const [mapConsent, setMapConsent] = useState(false);
   const [demo, setDemo] = useState(false);
   const [drag, setDrag] = useState(false);
@@ -412,12 +472,16 @@ function App() {
   const invalidate = () => {
     setReport(null);
     setAck(false);
+    setOmissionAck(false);
     setError("");
   };
   const choose = (f: File | undefined) => {
     if (!f) return;
     invalidate();
     setDemo(false);
+    setInventory(null);
+    setSelection(null);
+    setFile(null);
     if (!/\.dxf$/i.test(f.name)) {
       setError("DXF only / Nur DXF");
       return;
@@ -433,63 +497,107 @@ function App() {
     worker.current?.terminate();
     worker.current = null;
     setBusy(false);
+    setInventory(null);
+    setSelection(null);
     invalidate();
   };
-  async function run(useDemo = false) {
+  function getWorker() {
+    if (!worker.current) {
+      const w = new Worker("/worker.js");
+      worker.current = w;
+      w.onmessage = ({ data }) => {
+        if (worker.current !== w) return;
+        if (data.type === "status") setStage(data.key);
+        if (data.type === "inventory") {
+          setInventory(data.inventory);
+          setSelection(initialSelection(data.inventory));
+          setInventoryKey((k) => k + 1);
+          setBusy(false);
+        }
+        if (data.type === "result") {
+          setReport(data.report);
+          setBusy(false);
+        }
+        if (data.type === "error") {
+          setError(data.message);
+          setBusy(false);
+        }
+        if (data.type === "export")
+          save(
+            data.output,
+            `${nameRef.current}_EPSG25832.dxf`,
+            "application/dxf",
+          );
+      };
+      w.onerror = (e) => {
+        setError(e.message);
+        setBusy(false);
+        w.terminate();
+        worker.current = null;
+        setInventory(null);
+        setSelection(null);
+      };
+    }
+    return worker.current;
+  }
+  async function inspect(useDemo = false) {
     invalidate();
+    setInventory(null);
+    setSelection(null);
     if (!file && !useDemo) {
       setError(t.noSource);
       return;
     }
+    setBusy(true);
+    setDemo(useDemo);
+    if (useDemo) setFile(null);
+    setStage("runtime");
+    nameRef.current = useDemo ? "demo-gk4" : file!.name.replace(/\.dxf$/i, "");
+    const task = ++taskRef.current;
+    try {
+      const data = useDemo ? null : await file!.arrayBuffer();
+      if (task !== taskRef.current) return;
+      getWorker().postMessage(
+        { type: "inspect", demo: useDemo, file: data },
+        data ? [data] : [],
+      );
+    } catch (e) {
+      if (task === taskRef.current) {
+        setError(String(e));
+        setBusy(false);
+      }
+    }
+  }
+  function reinspect(distance: number) {
+    invalidate();
+    setBusy(true);
+    setStage("inspecting");
+    getWorker().postMessage({ type: "reinspect", distance });
+  }
+  async function run() {
+    invalidate();
+    if (!inventory || !selection || !selected.length) return;
     if (method === "custom" && !grid) {
       setError(t.missingGrid);
       return;
     }
     setBusy(true);
-    setDemo(useDemo);
-    setStage("runtime");
-    nameRef.current = useDemo ? "demo-gk4" : file!.name.replace(/\.dxf$/i, "");
+    setStage("processing");
     const task = ++taskRef.current;
     try {
-      if (!worker.current) {
-        const w = new Worker("/worker.js");
-        worker.current = w;
-        w.onmessage = ({ data }) => {
-          if (data.type === "status") setStage(data.key);
-          if (data.type === "result") {
-            setReport(data.report);
-            setBusy(false);
-          }
-          if (data.type === "error") {
-            setError(data.message);
-            setBusy(false);
-          }
-          if (data.type === "export")
-            save(
-              data.output,
-              `${nameRef.current}_EPSG25832.dxf`,
-              "application/dxf",
-            );
-        };
-        w.onerror = (e) => {
-          setError(e.message);
-          setBusy(false);
-          w.terminate();
-          worker.current = null;
-        };
-      }
-      const data = useDemo ? null : await file!.arrayBuffer();
       const gridData = method === "custom" ? await grid!.arrayBuffer() : null;
       if (task !== taskRef.current) return;
       worker.current!.postMessage(
         {
           type: "process",
-          demo: useDemo,
-          file: data,
           grid: gridData,
           tolerance: Number(tol),
+          selection: {
+            selectedIds: selected.map((e) => e.id),
+            excludePoints: selection.excludePoints,
+          },
         },
-        [data, gridData].filter(Boolean) as ArrayBuffer[],
+        gridData ? [gridData] : [],
       );
     } catch (e) {
       if (task === taskRef.current) {
@@ -630,9 +738,18 @@ function App() {
                 onChange={(e) => choose(e.target.files?.[0])}
               />
               <button
+                disabled={busy || !file}
+                className="primary analyze"
+                onClick={() => inspect(false)}
+              >
+                <FileSearch size={18} />
+                {t.inspect}
+                <ArrowRight size={17} />
+              </button>
+              <button
                 disabled={busy}
                 className="demo-button"
-                onClick={() => run(true)}
+                onClick={() => inspect(true)}
               >
                 {t.demo}
                 <ArrowRight size={15} />
@@ -640,7 +757,7 @@ function App() {
             </section>
             <section className="panel">
               <h2>
-                <span className="step">02</span>
+                <span className="step">03</span>
                 {t.step2}
               </h2>
               <label htmlFor="method">
@@ -706,8 +823,8 @@ function App() {
               </select>
               <button
                 className="primary analyze"
-                disabled={busy || !file}
-                onClick={() => run(false)}
+                disabled={busy || !inventory || !selected.length}
+                onClick={() => run()}
               >
                 {busy ? (
                   <LoaderCircle size={18} className="spin" />
@@ -720,7 +837,14 @@ function App() {
               {busy && (
                 <div className="progress" role="status">
                   <div className="progress-track" />
-                  <p>{t[stage as "runtime" | "libraries" | "processing"]}</p>
+                  <p>
+                    {
+                      t[
+                        stage as
+                          "runtime" | "libraries" | "processing" | "inspecting"
+                      ]
+                    }
+                  </p>
                   <button className="text-button" onClick={cancel}>
                     <X size={14} />
                     {t.cancel}
@@ -742,6 +866,20 @@ function App() {
             </div>
           </aside>
           <div className="results">
+            {inventory && selection && (
+              <PreflightPanel
+                key={inventoryKey}
+                inventory={inventory}
+                selection={selection}
+                busy={busy}
+                lang={lang}
+                onReinspect={reinspect}
+                onChange={(v) => {
+                  setSelection(v);
+                  invalidate();
+                }}
+              />
+            )}
             <section className="preview-panel">
               <div className="preview-toolbar">
                 <div className="tabs">
@@ -774,20 +912,7 @@ function App() {
                       </div>
                     )
                   ) : report.geographicBounds ? (
-                    mapConsent ? (
-                      <MapView bounds={report.geographicBounds} />
-                    ) : (
-                      <div className="empty">
-                        <MapIcon size={38} />
-                        <p>{t.mapPrivacy}</p>
-                        <button
-                          className="secondary"
-                          onClick={() => setMapConsent(true)}
-                        >
-                          {t.mapConsent}
-                        </button>
-                      </div>
-                    )
+                    <MapView report={report} basemap={mapConsent} />
                   ) : (
                     <div className="empty">{t.noMap}</div>
                   )
@@ -802,6 +927,24 @@ function App() {
                 )}
                 <span className="north">N ↑</span>
               </div>
+              {tab === "map" && report?.geographicBounds && (
+                <div className="map-options">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={mapConsent}
+                      onChange={(e) => setMapConsent(e.target.checked)}
+                    />
+                    {t.mapConsent}
+                  </label>
+                  <Info title="OpenStreetMap">{t.mapPrivacy}</Info>
+                  <small>
+                    {lang === "de"
+                      ? "Punkte: violett · Linien: magenta · Details per Mauszeiger"
+                      : "Points: purple · Lines: magenta · Hover for details"}
+                  </small>
+                </div>
+              )}
               <div className="preview-bottom">
                 <span>
                   <span className="dot" />
@@ -809,6 +952,13 @@ function App() {
                 </span>
                 <span>X / Y · m</span>
               </div>
+              {report?.previewLimited && (
+                <p className="preview-limit">
+                  {lang === "de"
+                    ? "Vorschau gekürzt (max. 1.500 Geometrien). Die Exportauswahl wird dadurch nicht gekürzt."
+                    : "Preview limited (max. 1,500 geometries). This does not limit the export selection."}
+                </p>
+              )}
             </section>
             {error && (
               <div className="error-box" role="alert">
@@ -821,7 +971,7 @@ function App() {
             )}
             <section className="panel analysis">
               <h2>
-                <span className="step">03</span>
+                <span className="step">04</span>
                 {t.summary}
                 <Info title={t.model}>{t.modelHelp}</Info>
               </h2>
@@ -877,6 +1027,76 @@ function App() {
                           <p>{issue.message}</p>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {report.requiresConfirmation && (
+                    <div className="omission-box">
+                      <h3>
+                        <TriangleAlert size={18} />
+                        {lang === "de"
+                          ? "Teil-Export: Objekte fehlen"
+                          : "Partial export: objects omitted"}
+                      </h3>
+                      <p>
+                        {lang === "de"
+                          ? `${report.selectedOmissions} Quellobjekte abgewählt · ${report.failedSources} nicht sicher transformierbar · ${report.successfulSources} Quellobjekte verarbeitet.`
+                          : `${report.selectedOmissions} source objects excluded · ${report.failedSources} could not be safely transformed · ${report.successfulSources} source objects processed.`}
+                      </p>
+                      {(report.audit.errors > 0 ||
+                        report.audit.repairs > 0 ||
+                        report.audit.recovered) && (
+                        <p>
+                          {lang === "de"
+                            ? "Die Datei wurde mit Recovery/Audit eingelesen. Dabei können weitere Inhalte repariert oder entfernt worden sein."
+                            : "The file was loaded using recovery/audit. Additional content may have been repaired or removed."}{" "}
+                          {report.audit.repairs} / {report.audit.errors}.
+                        </p>
+                      )}
+                      <details className="disclosure">
+                        <summary>
+                          {lang === "de"
+                            ? "Ausgelassene Objekte & Audit anzeigen"
+                            : "Show omitted objects & audit"}{" "}
+                          ({report.omitted.length})
+                        </summary>
+                        <p>
+                          {lang === "de"
+                            ? "Hier max. 50 Einträge; vollständige Objektliste im Prüfprotokoll."
+                            : "Up to 50 entries here; full object list in the inspection report."}
+                        </p>
+                        <div className="omission-list">
+                          {report.omitted.slice(0, 50).map((o, i) => (
+                            <p key={i}>
+                              <strong>
+                                {o.type} · #{o.handle} · {o.layer}
+                              </strong>
+                              <br />
+                              {o.category === "selection"
+                                ? lang === "de"
+                                  ? "Bewusst abgewählt"
+                                  : "Intentionally excluded"
+                                : o.message}
+                            </p>
+                          ))}
+                          {report.audit.findings.slice(0, 50).map((o, i) => (
+                            <p key={`audit${i}`}>{o.message}</p>
+                          ))}
+                        </div>
+                      </details>
+                      {!blocked && (
+                        <label className="ack">
+                          <input
+                            type="checkbox"
+                            checked={omissionAck}
+                            onChange={(e) => setOmissionAck(e.target.checked)}
+                          />
+                          <span>
+                            {lang === "de"
+                              ? `Ich bestätige den unvollständigen Export: ${report.omitted.length} aufgelistete Quellobjekte fehlen. Zusätzlich akzeptiere ich die genannten POINT-Filter innerhalb von Blöcken und mögliche Recovery-/Audit-Verluste. Das Original bleibt unverändert.`
+                              : `I confirm partial export: ${report.omitted.length} listed source objects are omitted. I also accept the reported POINT filtering inside blocks and possible recovery/audit losses. The original remains unchanged.`}
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
                   <details className="disclosure" open>
@@ -937,9 +1157,17 @@ function App() {
                   <div className="download-row">
                     <button
                       className="primary"
-                      disabled={blocked || !ack || busy}
+                      disabled={
+                        blocked ||
+                        !ack ||
+                        busy ||
+                        (report.requiresConfirmation && !omissionAck)
+                      }
                       onClick={() =>
-                        worker.current?.postMessage({ type: "export" })
+                        worker.current?.postMessage({
+                          type: "export",
+                          confirmOmissions: omissionAck,
+                        })
                       }
                     >
                       <ArrowDownToLine size={18} />
@@ -948,12 +1176,25 @@ function App() {
                     <button
                       className="secondary"
                       onClick={() => {
-                        const { preview, ...r } = report;
+                        const {
+                          preview,
+                          geographicPreview,
+                          previewMeta,
+                          ...r
+                        } = report;
                         void preview;
+                        void geographicPreview;
+                        void previewMeta;
                         save(
                           JSON.stringify(
                             {
                               ...r,
+                              preflight: {
+                                distance: inventory?.distance,
+                                total: inventory?.total,
+                                selected: selected.length,
+                                selection,
+                              },
                               file: nameRef.current,
                               gridName:
                                 method === "beta" ? "BETA2007.gsb" : grid?.name,
