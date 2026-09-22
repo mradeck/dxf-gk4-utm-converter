@@ -1,0 +1,36 @@
+DXF Coordinate Forge — v26.09.1.0
+Copyright (c) 2026 Michael Radeck
+
+Transformation grid: BeTA2007 (DHDN90 -> ETRS89), AdV / German surveying authorities.
+Original NTv2 download provided by LDBV Bayern:
+https://www.ldbv.bayern.de/mam/ldbv/dateien/utm-umstellung_gitterdateibeta2007.gsb
+SHA-256: 0cb8f865de4176978096917f69cf996b0a3a8f673cf3b12a78384019bd073197
+Redistribution: OSGeo PROJ-data describes BeTA2007 as "Free redistribution is allowed and welcome".
+https://github.com/OSGeo/PROJ-data/blob/master/de_adv/de_adv_README.txt
+Accuracy and application guidance:
+https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html
+
+ezdxf 1.4.4 — MIT — Copyright (c) 2010-2026 Manfred Moitzi.
+Bundled wheel includes its original LICENSE and metadata.
+https://github.com/mozman/ezdxf
+
+Pyodide 0.27.7 — MPL-2.0; CPython — Python Software Foundation License.
+Runtime and native packages loaded on demand from https://cdn.jsdelivr.net/pyodide/v0.27.7/full/
+https://github.com/pyodide/pyodide
+pyproj / PROJ — MIT; NumPy — BSD-3-Clause; pyparsing — MIT;
+fontTools — MIT; typing_extensions — Python Software Foundation License;
+micropip — MPL-2.0; certifi — MPL-2.0; SQLite — public domain.
+Their complete license texts are distributed with the respective packages.
+
+React — MIT, Meta Platforms, Inc. and affiliates.
+Leaflet — BSD-2-Clause, Vladimir Agafonkin / CloudMade.
+Lucide — ISC, Lucide Contributors.
+Vite — MIT, Evan You and Vite contributors.
+Google Fonts: DM Sans and Manrope — SIL Open Font License 1.1.
+
+Optional background map: © OpenStreetMap contributors, ODbL.
+https://www.openstreetmap.org/copyright
+Tiles are requested only after clicking Load map.
+
+No endorsement by any surveying authority is implied.
+This tool is not a cadastral certification or a lossless CAD converter.

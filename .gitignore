@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.netlify/
+.venv/
+__pycache__/
+*.tsbuildinfo
+test-output/
