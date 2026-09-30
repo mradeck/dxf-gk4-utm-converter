@@ -48,6 +48,7 @@ export type Selection = {
   excludedGroups: string[];
   excludedIds: string[];
   excludePoints: boolean;
+  symbolsAsPoints: boolean;
 };
 export const groupKey = (layer: string, type: string) =>
   JSON.stringify([layer, type]);
@@ -56,6 +57,7 @@ export const initialSelection = (inventory: Inventory): Selection => ({
   excludedGroups: [],
   excludedIds: [],
   excludePoints: false,
+  symbolsAsPoints: false,
 });
 export function selectedEntries(
   inventory: Inventory,

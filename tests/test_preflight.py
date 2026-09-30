@@ -150,3 +150,19 @@ def test_qgis_symbol_blocks_are_flagged():
     assert r["qgisSymbols"]==[{"block":"symbolLayer0","count":2,"size":2000.0}]
     assert [e.get("qgisSymbol",False) for e in r["entries"]]==[True,True,False]
     assert "QGIS symbol block" in r["entries"][0]["reason"]
+
+def test_qgis_symbols_convert_to_points():
+    doc,m=drawing()
+    block=doc.blocks.new("symbolLayer0")
+    block.add_circle((0,0),1000)
+    m.add_blockref("symbolLayer0",(X,Y,519.5),dxfattribs={"layer":"survey"})
+    m.add_blockref("OTHER",(X,Y)); doc.blocks.new("OTHER").add_line((0,0),(1,1))
+    r,out=process_document(doc,GRID,options={"symbolsAsPoints":True})
+    points=ezdxf.read(io.StringIO(out)).modelspace().query("POINT")
+    assert len(points)==1 and points[0].dxf.layer=="survey"
+    assert abs(points[0].dxf.location.z-519.5)<1e-9
+    assert abs(points[0].dxf.location.x-X) > 1000
+    assert r["warnings"]["qgisSymbols"]==1 and not r["requiresConfirmation"]
+    assert r["targetBounds"][2]-r["targetBounds"][0] < 10
+    r,_=process_document(doc,GRID,options={"symbolsAsPoints":True,"excludePoints":True})
+    assert r["warnings"]["nestedPoints"]==1
