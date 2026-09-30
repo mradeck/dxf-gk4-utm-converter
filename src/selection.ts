@@ -10,6 +10,7 @@ export type Entry = {
   reason: string;
   approximate: boolean;
   zeroZ: boolean;
+  qgisSymbol?: boolean;
 };
 export type Audit = {
   errors: number;
@@ -39,6 +40,7 @@ export type Inventory = {
   distance: number;
   inflation: number | null;
   zeroZCount: number;
+  qgisSymbols: { block: string; count: number; size: number }[];
   audit: Audit;
 };
 export type Selection = {

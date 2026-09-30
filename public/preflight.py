@@ -5,6 +5,7 @@ Cluster policy follows mradeck/geodata-inspector-cleaner (e4a2721):
 Recommendations never remove anything without a user selection.
 """
 import math
+import re
 from collections import Counter, defaultdict
 from statistics import median
 import numpy as np
@@ -33,6 +34,18 @@ def read_document(filename):
                          "layer": getattr(getattr(entity, "dxf", None), "layer", "—"),
                          "message": str(entry.message), "code": int(entry.code)})
     return source, {"recovered": recovered, "errors": len(auditor.errors), "repairs": len(auditor.fixes), "findings": findings}
+
+
+# QGIS "Save as DXF" with feature/symbol-layer symbology writes point markers as
+# blocks named symbolLayer<n>, sized in map units by the chosen symbology scale.
+QGIS_SYMBOL = re.compile(r"symbolLayer\d+")
+
+
+def symbol_size(source, name, cache):
+    if name not in cache:
+        extent = bbox.extents(source.blocks.get(name) or [], fast=True)
+        cache[name] = max(extent.size.x, extent.size.y) if extent.has_data else 0.0
+    return cache[name]
 
 
 def spatial_stats(e):
@@ -145,6 +158,7 @@ def inspect_document(source, audit=None, distance=1000):
     if not math.isfinite(distance) or not 1 <= distance <= 100000:
         raise ValueError("Cluster distance must be between 1 and 100,000 metres.")
     entries = []
+    symbol_sizes, symbols = {}, Counter()
     for i, e in enumerate(source.modelspace()):
         if i >= 200000:
             raise ValueError("Preflight limit: 200,000 model-space objects. Split the drawing first.")
@@ -159,6 +173,11 @@ def inspect_document(source, audit=None, distance=1000):
                 row["reason"] = "Outside plausible full GK4 metre range; review CRS / location."
         except Exception as error:
             row["reason"] = str(error)
+        if e.dxftype() == "INSERT" and QGIS_SYMBOL.fullmatch(e.dxf.name):
+            size = symbol_size(source, e.dxf.name, symbol_sizes) * abs(e.dxf.get("xscale", 1))
+            row["qgisSymbol"] = True
+            symbols[e.dxf.name] += 1
+            row["reason"] = row["reason"] or f"QGIS symbol block {e.dxf.name} (about {size:,.1f} m): marker from a symbology export, not drawing geometry."
         entries.append(row)
     clusters, conservative = cluster_entries(entries, distance)
     plausible = [c for c in clusters if c["plausible"]]
@@ -181,4 +200,5 @@ def inspect_document(source, audit=None, distance=1000):
             "dominant": dominant, "ratio": ratio, "conservative": conservative, "distance": distance,
             "fullBounds": full, "focusBounds": focus, "inflation": extent(full)/extent(focus) if extent(focus) > 0 else None,
             "zeroZCount": sum(e["zeroZ"] and e["cluster"] == (primary or {}).get("id") for e in entries) if zero_warning else 0,
+            "qgisSymbols": [{"block": name, "count": count, "size": symbol_sizes[name]} for name, count in sorted(symbols.items())],
             "audit": audit or {"recovered": False, "errors": 0, "repairs": 0, "findings": []}}
