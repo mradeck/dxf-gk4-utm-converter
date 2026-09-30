@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.9.0 — 2026-09-30
+
+- Tests workflow uses `actions/checkout`, `setup-node` and `setup-python` v7 (Node.js 24 runtime); removes the Node.js 20 deprecation warning. App behaviour unchanged.
+
 ## 26.09.8.0 — 2026-09-30
 
 - Project permission allowlist for Claude Code (`.claude/settings.json`): tests, typecheck and read-only GitHub PR queries run without confirmation prompts. App behaviour unchanged.
