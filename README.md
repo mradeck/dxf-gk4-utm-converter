@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.7.0`. npm: `26.9.7`.
+Display: `YY.MM.feature.fix` → `26.09.8.0`. npm: `26.9.8`.
 
 ## License
 
