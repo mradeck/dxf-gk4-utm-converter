@@ -47,8 +47,12 @@ export function PreflightPanel({
       ...selection,
       excludedIds: [...new Set([...selection.excludedIds, ...ids])],
     });
-  const duplicateIds = (kind: "same-layer" | "cross-layer") =>
-    inventory.entries.filter((e) => e.duplicateKind === kind).map((e) => e.id);
+  const duplicateIds = inventory.entries
+    .filter((e) => e.duplicateOf)
+    .map((e) => e.id);
+  const duplicatesRemoved = duplicateIds.every((id) =>
+    selection.excludedIds.includes(id),
+  );
   const toggle = (
     key: "clusters" | "excludedGroups" | "excludedIds",
     value: string,
@@ -248,51 +252,44 @@ export function PreflightPanel({
           </button>
         </div>
       )}
-      {inventory.duplicates.sameLayer + inventory.duplicates.crossLayer > 0 && (
-        <div className="review-warning">
+      {duplicateIds.length > 0 && (
+        <div className="crs-detect">
           <strong>
-            {txt("Exakte Duplikate erkannt", "Exact duplicates detected")}
+            {duplicateIds.length.toLocaleString(lang)}{" "}
+            {duplicatesRemoved
+              ? txt(
+                  "exakte Duplikate werden entfernt",
+                  "exact duplicates are removed",
+                )
+              : txt(
+                  "exakte Duplikate werden mit übernommen",
+                  "exact duplicates are kept",
+                )}
           </strong>
           <p>
-            {inventory.duplicates.sameLayer.toLocaleString(lang)}{" "}
-            {txt("auf gleichem Layer", "on the same layer")} ·{" "}
-            {inventory.duplicates.crossLayer.toLocaleString(lang)}{" "}
-            {txt("zusätzlich zwischen Layern", "additionally across layers")}
-          </p>
-          <p>
             {txt(
-              "Wie im Geodata Inspector: exakter Vergleich der DXF-Daten einschließlich Z, Eigenschaften und aller Stützpunkte, ohne Toleranz; nur die Objektkennung (Handle) bleibt unberücksichtigt. A ist das zuerst gefundene Objekt, B eine weitere Kopie – keine fachliche Priorität. Layerübergreifende Treffer können fachlich Verschiedenes bedeuten. Geprüft werden Modellbereich-Objekte, nicht der Inhalt von Blöcken. Nichts wird ungefragt entfernt; abgewählte Kopien erscheinen im Protokoll.",
-              "As in Geodata Inspector: exact comparison of the DXF data including Z, properties and all vertices, without tolerance; only the object handle is ignored. A is the first object found, B a further copy — no semantic priority. Cross-layer matches may carry different meanings. Model-space objects are checked, not block contents. Nothing is removed without your choice; excluded copies are listed in the report.",
+              `Von mehrfach vorhandenen Objekten übernimmt der Export nur das zuerst gefundene; die weiteren Kopien fehlen in der neuen DXF (${inventory.duplicates.sameLayer} auf gleichem Layer, ${inventory.duplicates.crossLayer} als Kopie auf einem anderen Layer). Die geladene Datei bleibt unverändert, entfernte Kopien stehen im Prüfprotokoll. Vergleich wie im Geodata Inspector: exakt, einschließlich Z, Eigenschaften und aller Stützpunkte, ohne Toleranz; nur die Objektkennung (Handle) zählt nicht. Geprüft werden Modellbereich-Objekte, nicht der Inhalt von Blöcken.`,
+              `For objects that occur more than once, the export keeps only the first one found; the further copies are left out of the new DXF (${inventory.duplicates.sameLayer} on the same layer, ${inventory.duplicates.crossLayer} as a copy on another layer). The loaded file stays unchanged; removed copies are listed in the report. Comparison as in Geodata Inspector: exact, including Z, properties and all vertices, without tolerance; only the object handle is ignored. Model-space objects are checked, not block contents.`,
             )}
           </p>
-          <div className="preflight-actions">
-            {inventory.duplicates.sameLayer > 0 && (
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => exclude(duplicateIds("same-layer"))}
-              >
-                {txt(
-                  "Gleicher Layer: alle B abwählen",
-                  "Same layer: exclude all B",
-                )}{" "}
-                ({inventory.duplicates.sameLayer})
-              </button>
-            )}
-            {inventory.duplicates.crossLayer > 0 && (
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => exclude(duplicateIds("cross-layer"))}
-              >
-                {txt(
-                  "Layerübergreifend: alle B abwählen",
-                  "Across layers: exclude all B",
-                )}{" "}
-                ({inventory.duplicates.crossLayer})
-              </button>
-            )}
-          </div>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              duplicatesRemoved
+                ? onChange({
+                    ...selection,
+                    excludedIds: selection.excludedIds.filter(
+                      (id) => !duplicateIds.includes(id),
+                    ),
+                  })
+                : exclude(duplicateIds)
+            }
+          >
+            {duplicatesRemoved
+              ? txt("Duplikate doch übernehmen", "Keep duplicates after all")
+              : txt("Duplikate entfernen", "Remove duplicates")}
+          </button>
         </div>
       )}
       <div className="preflight-actions">
@@ -301,11 +298,11 @@ export function PreflightPanel({
           className="secondary"
           onClick={() => onChange(initialSelection(inventory))}
         >
-          {txt("Alles auswählen", "Select all")}
+          {txt("Auswahl zurücksetzen", "Reset selection")}
         </button>
         <span>
           {inventory.total - selected.length}{" "}
-          {txt("bewusst abgewählt", "intentionally excluded")}
+          {txt("werden nicht übernommen", "not included")}
         </span>
       </div>
       <details className="disclosure" open>

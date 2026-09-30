@@ -46,3 +46,23 @@ test("cluster, group and object filters compose as an intersection", () => {
 test("group identifiers cannot collide with layer delimiters", () => {
   assert.notEqual(groupKey("a|b", "c"), groupKey("a", "b|c"));
 });
+test("exact duplicates are removed by default, their originals stay", () => {
+  const dup = {
+    ...inventory,
+    entries: [
+      ...inventory.entries,
+      {
+        id: "e4",
+        cluster: "main",
+        type: "POINT",
+        layer: "survey",
+        duplicateOf: "e0",
+      },
+    ],
+  };
+  assert.deepEqual(initialSelection(dup).excludedIds, ["e4"]);
+  assert.deepEqual(
+    selectedEntries(dup, initialSelection(dup)).map((e) => e.id),
+    ["e0", "e1", "e2", "e3"],
+  );
+});

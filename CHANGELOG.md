@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.09.11.0 — 2026-09-30
+
+- Exact duplicates (same layer and across layers) are removed from the export by default; the first object found stays. One button keeps them after all; the wording states what is removed.
+- OpenStreetMap background is shown immediately with the transformed preview (can be switched off; privacy note kept).
+- “Select all” renamed to “Reset selection”, since the reset keeps duplicates removed.
+
 ## 26.09.10.0 — 2026-09-30
 
 - UTM32 → GK4 as second direction (same BeTA2007/NTv2 grid applied inversely); GK4 → UTM → GK4 round trip below 1 µm.

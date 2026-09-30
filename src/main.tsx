@@ -69,7 +69,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.10.0";
+const VERSION = "26.09.11.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -153,9 +153,9 @@ const dict = {
     imprint: "Impressum",
     made: "Ein Werkzeug von Michael Radeck",
     privacy: "Lokal verarbeitet. Keine Analyse-Tracker.",
-    mapConsent: "OSM-Hintergrund laden",
+    mapConsent: "OSM-Hintergrund anzeigen",
     mapPrivacy:
-      "Erst beim Laden werden OpenStreetMap-Kacheln abgerufen. Dabei werden IP-Adresse und Kartenausschnitt an den Kartenanbieter übermittelt.",
+      "Die Hintergrundkarte lädt OpenStreetMap-Kacheln aus dem Internet. Dabei werden IP-Adresse und Kartenausschnitt, also die ungefähre Lage des Plans, an den Kartenanbieter übermittelt. Die DXF selbst verlässt den Browser nicht. Ausschalten verhindert weitere Abrufe.",
     noMap: "Noch keine gültige Ausdehnung vorhanden.",
     methodHelp:
       "EPSG beschreibt das Koordinatensystem, nicht das konkrete Transformationsverfahren. NTv2 enthält ortsabhängige Verschiebungen zwischen DHDN und ETRS89. Objekte außerhalb der Gitterabdeckung werden ausgelassen und im Protokoll aufgeführt. UTM → GK4 nutzt dasselbe Gitter in Gegenrichtung. Es gibt keinen stillen Ersatz durch eine ungenauere Methode.",
@@ -270,9 +270,9 @@ const dict = {
     imprint: "Legal notice",
     made: "A tool by Michael Radeck",
     privacy: "Locally processed. No analytics trackers.",
-    mapConsent: "Load OSM background",
+    mapConsent: "Show OSM background",
     mapPrivacy:
-      "OpenStreetMap tiles are only requested when enabled. This sends your IP address and the map area to the tile provider.",
+      "The background map loads OpenStreetMap tiles from the internet, which sends your IP address and the map area, i.e. the approximate location of the drawing, to the tile provider. The DXF itself never leaves the browser. Switching it off stops further requests.",
     noMap: "No valid extent available yet.",
     methodHelp:
       "EPSG identifies a coordinate system, not the specific transformation operation. NTv2 stores location-dependent shifts between DHDN and ETRS89. Objects outside grid coverage are omitted and listed in the report. UTM → GK4 applies the same grid in reverse. There is no silent fallback to a less accurate method.",
@@ -501,7 +501,7 @@ function App() {
   const [stage, setStage] = useState("runtime");
   const [error, setError] = useState("");
   const [tab, setTab] = useState("map");
-  const [mapConsent, setMapConsent] = useState(false);
+  const [mapConsent, setMapConsent] = useState(true);
   const [demo, setDemo] = useState(false);
   const [drag, setDrag] = useState(false);
   const worker = useRef<Worker | null>(null);

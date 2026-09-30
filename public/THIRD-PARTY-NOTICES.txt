@@ -1,4 +1,4 @@
-DXF Coordinate Forge — v26.09.10.0
+DXF Coordinate Forge — v26.09.11.0
 Copyright (c) 2026 Michael Radeck
 
 Transformation grid: BeTA2007 (DHDN90 -> ETRS89), AdV / German surveying authorities.
@@ -30,7 +30,7 @@ Google Fonts: DM Sans and Manrope — SIL Open Font License 1.1.
 
 Optional background map: © OpenStreetMap contributors, ODbL.
 https://www.openstreetmap.org/copyright
-Tiles are requested only after enabling the OSM background.
+Tiles are requested with the transformed preview; the background can be switched off.
 
 Spatial-review policy inspired by Geodata Inspector & Cleaner, Michael Radeck:
 https://github.com/mradeck/geodata-inspector-cleaner/tree/e4a2721de903b5aedca6be469d8d51ff4a51621e
