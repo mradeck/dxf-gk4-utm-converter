@@ -2,7 +2,7 @@
 
 [Open app](https://dxf-coordinate-forge.netlify.app/) · [Public source](https://github.com/mradeck/dxf-gk4-utm-converter)
 
-Local-first browser SPA: DXF model space from **DHDN / GK4 (EPSG:31468)** to **ETRS89 / UTM32N (EPSG:25832)**. Fixed X=easting, Y=northing in metres; Z unchanged. German/English UI, dark/light theme, preflight selection, partial exports with consent and actual DXF geometry over an opt-in OpenStreetMap background.
+Local-first browser SPA: DXF model space between **DHDN / GK4 (EPSG:31468)** and **ETRS89 / UTM32N (EPSG:25832)**, in both directions; the direction is detected from the coordinates. Fixed X=easting, Y=northing in metres; Z unchanged. German/English UI, dark/light theme, automatic preflight on loading, selection, reported partial exports and actual DXF geometry over an opt-in OpenStreetMap background.
 
 ## Run
 
@@ -16,7 +16,7 @@ Static Netlify deployment uses `dist/`. No server-side CAD processing, API keys 
 
 ## Geodesy
 
-Explicit PROJ pipeline: inverse GK4/Bessel projection → NTv2 horizontal shift → UTM32/GRS80. Never use an optional grid, null grid, automatic operation selection or silent Helmert fallback. Objects outside grid coverage are reported and omitted with explicit partial-export consent. All source inputs must be full GK4 metres; header units other than metre/unspecified block export. Unspecified units require acknowledgement. Output is metre-based DXF R2018 without leading zone number.
+Explicit PROJ pipelines: GK4 → UTM is inverse GK4/Bessel projection → NTv2 horizontal shift → UTM32/GRS80; UTM → GK4 runs the same steps in reverse, applying the NTv2 grid inversely (PROJ iterates the inverse shift). A GK4 → UTM → GK4 round trip reproduces the input below 1 µm. Never use an optional grid, null grid, automatic operation selection or silent Helmert fallback. Objects outside grid coverage are omitted and listed in the report. Source inputs must be full metres: GK4 with zone prefix 4 (easting 4.0–5.0 million) or UTM32 without zone prefix (easting 0.1–1.0 million), northing 5.0–6.2 million. As in Geodata Inspector, DXF carries no CRS metadata, so the direction follows the coordinate range of the majority of objects; it can be overridden in the preflight, and objects in the other system are flagged. Header units other than metre/unspecified block export; unspecified units are reported. Output is metre-based DXF R2018; UTM output has no leading zone number, GK4 output keeps prefix 4.
 
 BeTA2007 is a **decimetre-level geotopographic transformation**, not an assured cadastral transformation. BY-KanU was withdrawn at the end of 2024; LDBV's public explanation is only “aus fachlichen Gründen”. BY-SAPOS has different geodetic foundations and cannot automatically replace a cadastral grid. A new empirical grid needs suitable common points and independent validation; this app does not manufacture accuracy by resampling.
 
@@ -34,26 +34,26 @@ The output is a **new model-space drawing**, not a full document migration. Laye
 
 POINT, LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, ELLIPSE, SPLINE, TEXT, MTEXT, 3DFACE, SOLID, TRACE, MESH and horizontal non-gradient HATCH are handled with entity-specific logic. Text uses an exact anchor and local rotation/scale approximation; large text is checked against its bounding box. Hatch boundaries are transformed and pattern rotation/scale approximated locally; associativity is removed. Mesh/face vertices are transformed without tessellating face interiors. Paper layouts, viewports, extended metadata, dependencies, source block structure and editable dimension semantics are not retained. External fonts are not bundled.
 
-Unsupported or ambiguous geometry is **omitted per top-level source object**, including XREF/proxies/ACIS solids, recursive/dynamic/XCLIP/nonuniform/mirrored blocks, tilted text/hatches, gradient hatches, physical polyline widths and nonzero thickness. Per-object staging rolls back partial block/hatch geometry and preview bounds on failure. The full report lists omitted source handles, layers and reasons. Two separate acknowledgements are required for a partial export: normal CAD/geodetic limitations and missing contents. Worker-side validation enforces omission consent. No original is overwritten.
+Unsupported or ambiguous geometry is **omitted per top-level source object**, including XREF/proxies/ACIS solids, recursive/dynamic/XCLIP/nonuniform/mirrored blocks, tilted text/hatches, gradient hatches, physical polyline widths and nonzero thickness. Per-object staging rolls back partial block/hatch geometry and preview bounds on failure. The full report lists omitted source handles, layers and reasons; limitations and omissions are shown before download, without extra confirmation clicks, because the export is always a new file. No original is overwritten.
 
-Fatal errors still prevent export: unreadable files, invalid grids, incompatible drawing units, no remaining geometry and a failing output structural audit. Source DXF recovery/audit repairs are reported and require partial-export consent because they may remove content before inventory.
+Fatal errors still prevent export: unreadable files, invalid grids, incompatible drawing units, no remaining geometry and a failing output structural audit. Source DXF recovery/audit repairs are reported because they may remove content before inventory.
 
 ## Workflow
 
 The interface guides four numbered steps in reading order; a step bar with a “next step” hint shows the current state and links to each panel:
 
-1. **Choose & inspect a drawing** – drop a DXF (or use the sample) and click *Inspect file*.
+1. **Choose & inspect a drawing** – drop a DXF (or use the sample); the preflight starts immediately.
 2. **Preflight & selection** – review the preselection (everything is selected by default).
 3. **Set the transformation** – BeTA2007 is bundled; optionally choose a custom NTv2 `.gsb`, then click *Transform selection*.
-4. **Check result & download** – inspect the map/drawing preview, acknowledge the notes and download the DXF and report.
+4. **Check result & download** – inspect the map/drawing preview and download the DXF and report.
 
 ## Preflight and cleanup
 
-1. Read the DXF locally and inspect model-space objects **before transformation**.
+1. Read the DXF locally, detect GK4 or UTM32 and inspect model-space objects **before transformation**.
 2. Review counts, spatial groups and implausible coordinates. Keep all by default; optionally exclude standalone POINTs, groups, layer/type combinations or individual objects. POINT filtering also applies inside decomposed blocks, without removing polyline/mesh vertices.
 3. Transform the selection. Review omissions and download a new DXF plus a complete JSON inspection report.
 
-Spatial policy is based on [Geodata Inspector & Cleaner](https://github.com/mradeck/geodata-inspector-cleaner/tree/e4a2721de903b5aedca6be469d8d51ff4a51621e): transitive object-centre clustering (default 1,000 m), a 60% main-area threshold, extent-inflation hints and no automatic deletion. The single GK4-plausible cluster is preferred as a main-area candidate; otherwise the largest cluster is used. Equally weighted groups remain ambiguous. Blocks/text use approximate anchors; this is a review aid, not proof of validity. Z=0 is only flagged alongside materially elevated geometry. INSERTs of QGIS symbol blocks (`symbolLayer<n>`, written by a QGIS DXF export with symbology) are flagged with their marker size; their size follows the symbology scale, not the drawing. They can be converted to POINTs at their insertion point (Z, layer and colour kept; circle/fill dropped; the POINT filter applies) or excluded in one click. Exact duplicates follow the Geodata Inspector policy (`src/duplicates/dxfDuplicates.ts`): numerically exact comparison of the entity’s DXF tags including Z, properties and all vertices, ignoring only handles (owner references canonicalized); groups are split into same-layer and cross-layer matches, A is the first object found and B a further copy. Copies are never removed automatically; “exclude all B” acts per category, and the individual object list shows each finding; re-exporting from QGIS with “No symbology” keeps points as POINT objects. Spatial hashing avoids quadratic work for dense point sets; exhausting the cross-cell comparison budget conservatively merges neighbours and disables outlier recommendations.
+Spatial policy is based on [Geodata Inspector & Cleaner](https://github.com/mradeck/geodata-inspector-cleaner/tree/e4a2721de903b5aedca6be469d8d51ff4a51621e): transitive object-centre clustering (default 1,000 m), a 60% main-area threshold, extent-inflation hints and no automatic deletion. The single cluster plausible in the source system is preferred as a main-area candidate; otherwise the largest cluster is used. Equally weighted groups remain ambiguous. Blocks/text use approximate anchors; this is a review aid, not proof of validity. Z=0 is only flagged alongside materially elevated geometry. INSERTs of QGIS symbol blocks (`symbolLayer<n>`, written by a QGIS DXF export with symbology) are flagged with their marker size; their size follows the symbology scale, not the drawing. They can be converted to POINTs at their insertion point (Z, layer and colour kept; circle/fill dropped; the POINT filter applies) or excluded in one click; re-exporting from QGIS with “No symbology” keeps points as POINT objects. Exact duplicates follow the Geodata Inspector policy (`src/duplicates/dxfDuplicates.ts`): numerically exact comparison of the entity’s DXF tags including Z, properties and all vertices, ignoring only handles (owner references canonicalized); groups are split into same-layer and cross-layer matches, A is the first object found and B a further copy. Copies are never removed automatically; “exclude all B” acts per category, and the individual object list shows each finding. Spatial hashing avoids quadratic work for dense point sets; exhausting the cross-cell comparison budget conservatively merges neighbours and disables outlier recommendations.
 
 The schematic preflight view shows up to 1,000 bounds/anchors for the focused group. The transformed DXF map shows up to 1,500 sampled geometries with handles/layers on hover; lines are magenta, points purple. Preview simplification **does not remove export objects**. OSM tiles load only with consent and disclose the visible map area/IP to the provider. Text glyphs, hatch fills and exact CAD symbology are not rendered.
 
@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.9.0`. npm: `26.9.9`.
+Display: `YY.MM.feature.fix` → `26.09.10.0`. npm: `26.9.10`.
 
 ## License
 

@@ -44,6 +44,13 @@ export type Inventory = {
   zeroZCount: number;
   qgisSymbols: { block: string; count: number; size: number }[];
   duplicates: { sameLayer: number; crossLayer: number };
+  crs: {
+    source: "gk4" | "utm" | null;
+    direction: "gk4-utm" | "utm-gk4" | null;
+    mode: "detected" | "manual" | "unknown";
+    counts: { gk4: number; utm: number; other: number };
+    mixed: boolean;
+  };
   audit: Audit;
 };
 export type Selection = {

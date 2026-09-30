@@ -1,5 +1,12 @@
 # Changelog
 
+## 26.09.10.0 — 2026-09-30
+
+- UTM32 → GK4 as second direction (same BeTA2007/NTv2 grid applied inversely); GK4 → UTM → GK4 round trip below 1 µm.
+- Source system detected from coordinate ranges as in Geodata Inspector (GK4 with zone prefix 4, UTM32 without zone prefix); manual override in the preflight; objects in the other system flagged. Header, preview, sample table and file name (`_EPSG25832` / `_EPSG31468`) follow the direction.
+- Preflight starts immediately after loading a file; the “Inspect file” button is gone.
+- No acknowledgement checkboxes before download: limitations and omissions stay visible in step 04 and in the report, blockers still prevent export.
+
 ## 26.09.9.0 — 2026-09-30
 
 - Tests workflow uses `actions/checkout`, `setup-node` and `setup-python` v7 (Node.js 24 runtime); removes the Node.js 20 deprecation warning. App behaviour unchanged.

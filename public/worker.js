@@ -48,9 +48,11 @@ self.onmessage = async ({ data }) => {
     if (data.type === "export") {
       if (!result?.output || result.report.blockers.length)
         throw new Error("No validated export.");
-      if (result.report.requiresConfirmation && data.confirmOmissions !== true)
-        throw new Error("Confirm the omitted objects before exporting.");
-      postMessage({ type: "export", output: result.output });
+      postMessage({
+        type: "export",
+        output: result.output,
+        target: result.report.targetCRS,
+      });
       return;
     }
     result = undefined;
@@ -70,9 +72,10 @@ self.onmessage = async ({ data }) => {
         py.FS.unlink("/input.dxf");
       } else if (!loaded) throw new Error("Select and inspect a DXF first.");
       py.globals.set("cluster_distance", data.distance ?? 1000);
+      py.globals.set("direction", data.direction ?? "auto");
       const inventory = JSON.parse(
         py.runPython(
-          "json.dumps(inspect_document(_source, _audit, cluster_distance), allow_nan=False)",
+          "json.dumps(inspect_document(_source, _audit, cluster_distance, direction), allow_nan=False)",
         ),
       );
       loaded = true;
