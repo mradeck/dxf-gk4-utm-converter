@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npx tsc -b)",
+      "Bash(.venv/bin/pytest tests -q)",
+      "mcp__github__pull_request_read"
+    ]
+  }
+}

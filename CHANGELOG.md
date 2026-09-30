@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.8.0 — 2026-09-30
+
+- Project permission allowlist for Claude Code (`.claude/settings.json`): tests, typecheck and read-only GitHub PR queries run without confirmation prompts. App behaviour unchanged.
+
 ## 26.09.7.0 — 2026-09-30
 
 - GitHub Actions workflow: build (typecheck), Python engine tests and Node/WebAssembly runtime tests on every pull request and push to `main`; no artifacts uploaded.
