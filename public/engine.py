@@ -16,11 +16,12 @@ from ezdxf.math import Vec3, Matrix44
 from ezdxf.addons import Importer
 from ezdxf.explode import attrib_to_text
 from ezdxf.layouts import VirtualLayout
+from ezdxf.entities import Point
 from pyproj import Transformer, network
-from preflight import read_document, inspect_document, issue
+from preflight import read_document, inspect_document, issue, QGIS_SYMBOL
 
 network.set_network_enabled(False)
-VERSION = "26.09.2.0"
+VERSION = "26.09.5.0"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
@@ -193,6 +194,10 @@ class Conversion:
             return
         if typ not in SUPPORTED:
             raise ValueError(f"Unsupported object: {typ}")
+        if typ == "INSERT" and self.options.get("symbolsAsPoints", False) and QGIS_SYMBOL.fullmatch(e.dxf.name):
+            # QGIS marker sized by symbology scale: keep only its location.
+            self.warnings["qgisSymbols"] += 1
+            return self.entity(Point.new(dxfattribs={**self.style(e), "location": e.dxf.insert}), stack, inherited)
         if inherited:
             if e.dxf.layer == "0":
                 e.dxf.layer = inherited.dxf.layer

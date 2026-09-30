@@ -59,7 +59,7 @@ type Report = {
   grid: { from: string; to: string; subgrids: number; sha256: string };
   samples: { source: number[]; target: number[] }[];
 };
-const VERSION = "26.09.4.0";
+const VERSION = "26.09.5.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -341,6 +341,10 @@ const warnings: Record<string, [string, string]> = {
   metadata: [
     "Objekt-Zusatzdaten werden entfernt",
     "Custom entity data removed",
+  ],
+  qgisSymbols: [
+    "QGIS-Symbolblöcke als Punkte am Einfügepunkt übernommen",
+    "QGIS symbol blocks converted to points at their insertion point",
   ],
   nestedPoints: [
     "POINTs innerhalb von Blöcken bewusst ausgelassen",
@@ -645,6 +649,7 @@ function App() {
           selection: {
             selectedIds: selected.map((e) => e.id),
             excludePoints: selection.excludePoints,
+            symbolsAsPoints: selection.symbolsAsPoints,
           },
         },
         gridData ? [gridData] : [],

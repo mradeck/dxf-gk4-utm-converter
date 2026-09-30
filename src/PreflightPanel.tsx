@@ -150,6 +150,30 @@ export function PreflightPanel({
               "These are point markers from a QGIS DXF export with symbology. Their size follows the symbol size and symbology scale, not the drawing, so they appear as large circles. Recommendation: re-export from QGIS with symbology mode “No symbology” so points remain POINT objects.",
             )}
           </p>
+          <label className="selection-check">
+            <input
+              type="checkbox"
+              checked={selection.symbolsAsPoints}
+              disabled={busy}
+              onChange={(e) =>
+                onChange({ ...selection, symbolsAsPoints: e.target.checked })
+              }
+            />
+            <span>
+              <strong>
+                {txt(
+                  "QGIS-Symbole in Punkte umwandeln",
+                  "Convert QGIS symbols to points",
+                )}
+              </strong>
+              <small>
+                {txt(
+                  "Jedes Symbol wird als POINT an seinem Einfügepunkt (inkl. Z, Layer und Farbe) exportiert; Kreis und Füllung entfallen. Die Option „Einzelne POINT-Objekte mitnehmen“ gilt auch für diese Punkte.",
+                  "Each symbol is exported as a POINT at its insertion point (incl. Z, layer and colour); circle and fill are dropped. “Include standalone POINT objects” also applies to these points.",
+                )}
+              </small>
+            </span>
+          </label>
           <button
             className="secondary"
             disabled={busy}

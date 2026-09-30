@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.09.5.0 — 2026-09-30
+
+- Optional conversion of QGIS symbol blocks (`symbolLayer<n>`) to POINTs at their insertion point, keeping Z, layer and colour; reported as a transformation note.
+- Engine report version aligned with the app version (was still 26.09.2.0).
+
 ## 26.09.4.0 — 2026-09-30
 
 - Preflight detects QGIS symbol blocks (`symbolLayer<n>`) from DXF exports with symbology, reports count and marker size, flags each reference and offers one-click exclusion plus the QGIS re-export recommendation (“No symbology”).
