@@ -11,6 +11,8 @@ export type Entry = {
   approximate: boolean;
   zeroZ: boolean;
   qgisSymbol?: boolean;
+  duplicateOf?: string;
+  duplicateKind?: "same-layer" | "cross-layer";
 };
 export type Audit = {
   errors: number;
@@ -41,6 +43,7 @@ export type Inventory = {
   inflation: number | null;
   zeroZCount: number;
   qgisSymbols: { block: string; count: number; size: number }[];
+  duplicates: { sameLayer: number; crossLayer: number };
   audit: Audit;
 };
 export type Selection = {

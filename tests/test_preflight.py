@@ -166,3 +166,19 @@ def test_qgis_symbols_convert_to_points():
     assert r["targetBounds"][2]-r["targetBounds"][0] < 10
     r,_=process_document(doc,GRID,options={"symbolsAsPoints":True,"excludePoints":True})
     assert r["warnings"]["nestedPoints"]==1
+
+def test_exact_duplicates_follow_geodata_inspector_policy():
+    doc,m=drawing()
+    m.add_line((X,Y,1),(X+1,Y,1))                          # A
+    m.add_line((X,Y,1),(X+1,Y,1))                          # B same layer
+    m.add_line((X,Y,1),(X+1,Y,1),dxfattribs={"layer":"L2"}) # B cross-layer
+    m.add_line((X,Y,1.001),(X+1,Y,1))                      # Z differs: no duplicate
+    m.add_polyline3d([(X,Y,0),(X+1,Y+1,0)])
+    m.add_polyline3d([(X,Y,0),(X+1,Y+1,0)])                # vertices compared, handles ignored
+    m.add_polyline3d([(X+1,Y+1,0),(X,Y,0)])                # reversed order: no duplicate
+    r=inspect_document(doc)
+    e=r["entries"]
+    assert r["duplicates"]=={"sameLayer":2,"crossLayer":1}
+    assert [x.get("duplicateKind") for x in e]==[None,"same-layer","cross-layer",None,None,"same-layer",None]
+    assert e[1]["duplicateOf"]=="e0" and e[2]["duplicateOf"]=="e0" and e[5]["duplicateOf"]=="e4"
+    assert "Exact duplicate" in e[1]["reason"]
