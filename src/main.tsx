@@ -69,7 +69,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.13.0";
+const VERSION = "26.09.14.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -157,6 +157,7 @@ const dict = {
     made: "Ein Werkzeug von Michael Radeck",
     privacy: "Lokal verarbeitet. Keine Analyse-Tracker.",
     mapConsent: "OSM-Hintergrund anzeigen",
+    transparency: "Transparenz",
     mapPrivacy:
       "Die Hintergrundkarte lädt OpenStreetMap-Kacheln aus dem Internet. Dabei werden IP-Adresse und Kartenausschnitt, also die ungefähre Lage des Plans, an den Kartenanbieter übermittelt. Die DXF selbst verlässt den Browser nicht. Ausschalten verhindert weitere Abrufe.",
     noMap: "Noch keine gültige Ausdehnung vorhanden.",
@@ -277,6 +278,7 @@ const dict = {
     made: "A tool by Michael Radeck",
     privacy: "Locally processed. No analytics trackers.",
     mapConsent: "Show OSM background",
+    transparency: "Transparency",
     mapPrivacy:
       "The background map loads OpenStreetMap tiles from the internet, which sends your IP address and the map area, i.e. the approximate location of the drawing, to the tile provider. The DXF itself never leaves the browser. Switching it off stops further requests.",
     noMap: "No valid extent available yet.",
@@ -406,8 +408,18 @@ const isLight = (hex: string) =>
       s + parseInt(hex.slice(i, i + 2), 16) * [0.299, 0.587, 0.114][k],
     0,
   ) > 190;
-function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
+function MapView({
+  report,
+  basemap,
+  transparency,
+}: {
+  report: Report;
+  basemap: boolean;
+  transparency: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const tiles = useRef<L.TileLayer | null>(null);
+  const opacity = 1 - transparency / 100;
   useEffect(() => {
     if (!ref.current) return;
     const map = L.map(ref.current, { preferCanvas: true }).fitBounds(
@@ -417,12 +429,14 @@ function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
       ]) as L.LatLngBoundsExpression,
       { maxZoom: 17, padding: [35, 35] },
     );
-    if (basemap)
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(map);
+    tiles.current = basemap
+      ? L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+          opacity,
+        }).addTo(map)
+      : null;
     report.geographicPreview.forEach((points, i) => {
       const latlngs = points.map((p) => [p[1], p[0]] as L.LatLngTuple);
       if (!latlngs.length) return;
@@ -465,7 +479,11 @@ function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
       observer.disconnect();
       map.remove();
     };
+    // Opacity changes are applied below without rebuilding the map.
   }, [report, basemap]);
+  useEffect(() => {
+    tiles.current?.setOpacity(opacity);
+  }, [opacity]);
   return <div className="map" ref={ref} />;
 }
 function Drawing({ report }: { report: Report }) {
@@ -531,6 +549,7 @@ function App() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("map");
   const [mapConsent, setMapConsent] = useState(true);
+  const [transparency, setTransparency] = useState(50);
   const [demo, setDemo] = useState(false);
   const [drag, setDrag] = useState(false);
   const worker = useRef<Worker | null>(null);
@@ -1065,7 +1084,11 @@ function App() {
                       </div>
                     )
                   ) : report.geographicBounds ? (
-                    <MapView report={report} basemap={mapConsent} />
+                    <MapView
+                      report={report}
+                      basemap={mapConsent}
+                      transparency={transparency}
+                    />
                   ) : (
                     <div className="empty">{t.noMap}</div>
                   )
@@ -1089,6 +1112,19 @@ function App() {
                       onChange={(e) => setMapConsent(e.target.checked)}
                     />
                     {t.mapConsent}
+                  </label>
+                  <label className="opacity-control">
+                    {t.transparency}
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={transparency}
+                      disabled={!mapConsent}
+                      onChange={(e) => setTransparency(Number(e.target.value))}
+                    />
+                    <output>{transparency} %</output>
                   </label>
                   <Info title="OpenStreetMap">{t.mapPrivacy}</Info>
                   <small>

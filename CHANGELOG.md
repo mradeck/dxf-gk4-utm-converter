@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.14.0 — 2026-09-30
+
+- Transparency slider for the OSM background next to “Show OSM background” (default 50 %); changes apply without rebuilding the map.
+
 ## 26.09.13.0 — 2026-09-30
 
 - Map and drawing preview show the effective DXF colours (object true colour, ACI or layer colour) instead of fixed magenta/purple; light colours are outlined on the map.
