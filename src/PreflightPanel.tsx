@@ -128,6 +128,49 @@ export function PreflightPanel({
           </small>
         </span>
       </label>
+      {inventory.qgisSymbols.length > 0 && (
+        <div className="review-warning">
+          <strong>
+            {txt(
+              "QGIS-Symbolblöcke erkannt",
+              "QGIS symbol blocks detected",
+            )}
+          </strong>
+          <p>
+            {inventory.qgisSymbols
+              .map(
+                (s) =>
+                  `${s.count.toLocaleString(lang)} × ${s.block} (≈ ${s.size.toLocaleString(lang, { maximumFractionDigits: 1 })} m)`,
+              )
+              .join(" · ")}
+          </p>
+          <p>
+            {txt(
+              "Das sind Punktsignaturen aus einem QGIS-DXF-Export mit Symbologie. Ihre Größe ergibt sich aus Symbolgröße und Symbologie-Maßstab, nicht aus dem Plan; sie erscheinen daher als große Kreise. Empfehlung: in QGIS erneut mit Symbologiemodus „Keine Symbologie“ exportieren, dann bleiben Punkte POINT-Objekte.",
+              "These are point markers from a QGIS DXF export with symbology. Their size follows the symbol size and symbology scale, not the drawing, so they appear as large circles. Recommendation: re-export from QGIS with symbology mode “No symbology” so points remain POINT objects.",
+            )}
+          </p>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              onChange({
+                ...selection,
+                excludedIds: [
+                  ...new Set([
+                    ...selection.excludedIds,
+                    ...inventory.entries
+                      .filter((e) => e.qgisSymbol)
+                      .map((e) => e.id),
+                  ]),
+                ],
+              })
+            }
+          >
+            {txt("QGIS-Symbole abwählen", "Exclude QGIS symbols")}
+          </button>
+        </div>
+      )}
       <div className="preflight-actions">
         <button
           disabled={busy}

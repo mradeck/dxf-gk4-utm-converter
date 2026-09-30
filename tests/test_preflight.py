@@ -138,3 +138,15 @@ def test_geographic_geometry_covers_preview_and_has_handles():
 def test_bad_cluster_distance_rejected(distance):
     doc,_=drawing()
     with pytest.raises(ValueError): inspect_document(doc,distance=distance)
+
+def test_qgis_symbol_blocks_are_flagged():
+    doc,m=drawing()
+    block=doc.blocks.new("symbolLayer0")
+    block.add_circle((0,0),1000)
+    m.add_blockref("symbolLayer0",(X,Y))
+    m.add_blockref("symbolLayer0",(X+5,Y))
+    m.add_point((X,Y))
+    r=inspect_document(doc)
+    assert r["qgisSymbols"]==[{"block":"symbolLayer0","count":2,"size":2000.0}]
+    assert [e.get("qgisSymbol",False) for e in r["entries"]]==[True,True,False]
+    assert "QGIS symbol block" in r["entries"][0]["reason"]

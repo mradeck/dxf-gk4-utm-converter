@@ -59,7 +59,7 @@ type Report = {
   grid: { from: string; to: string; subgrids: number; sha256: string };
   samples: { source: number[]; target: number[] }[];
 };
-const VERSION = "26.09.3.0";
+const VERSION = "26.09.4.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {

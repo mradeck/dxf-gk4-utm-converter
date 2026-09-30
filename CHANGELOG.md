@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.4.0 — 2026-09-30
+
+- Preflight detects QGIS symbol blocks (`symbolLayer<n>`) from DXF exports with symbology, reports count and marker size, flags each reference and offers one-click exclusion plus the QGIS re-export recommendation (“No symbology”).
+
 ## 26.09.3.0 — 2026-09-30
 
 - Linear workflow: step bar (01–04) with current state and a “next step” hint naming the exact button to click.
