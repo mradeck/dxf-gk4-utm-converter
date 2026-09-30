@@ -20,12 +20,16 @@ export function PreflightPanel({
   selection: Selection;
   onChange: (v: Selection) => void;
   busy: boolean;
-  onReinspect: (distance: number) => void;
+  onReinspect: (distance: number, direction: string) => void;
   lang: "de" | "en";
 }) {
   const de = lang === "de",
     txt = (a: string, b: string) => (de ? a : b);
   const [distance, setDistance] = useState(String(inventory.distance));
+  const direction =
+    inventory.crs.mode === "manual" ? inventory.crs.direction! : "auto";
+  const crsName = (s: "gk4" | "utm" | null) =>
+    s === "gk4" ? "GK4 (EPSG:31468)" : s === "utm" ? "UTM32 (EPSG:25832)" : "—";
   const [focus, setFocus] = useState(inventory.primary ?? "");
   const [search, setSearch] = useState("");
   const [flaggedOnly, setFlaggedOnly] = useState(true);
@@ -44,9 +48,7 @@ export function PreflightPanel({
       excludedIds: [...new Set([...selection.excludedIds, ...ids])],
     });
   const duplicateIds = (kind: "same-layer" | "cross-layer") =>
-    inventory.entries
-      .filter((e) => e.duplicateKind === kind)
-      .map((e) => e.id);
+    inventory.entries.filter((e) => e.duplicateKind === kind).map((e) => e.id);
   const toggle = (
     key: "clusters" | "excludedGroups" | "excludedIds",
     value: string,
@@ -99,6 +101,59 @@ export function PreflightPanel({
           "The file is initially read and checked locally. Only your selection is transformed. Suspicious does not mean invalid — nothing is removed without your choice.",
         )}
       </p>
+      <div
+        className={
+          inventory.crs.source && !inventory.crs.mixed
+            ? "crs-detect"
+            : "review-warning"
+        }
+      >
+        <strong>
+          {inventory.crs.mode === "manual"
+            ? txt("Richtung manuell gewählt", "Direction chosen manually")
+            : inventory.crs.source
+              ? txt("Koordinatensystem erkannt", "Coordinate system detected")
+              : txt(
+                  "Koordinatensystem nicht erkannt",
+                  "Coordinate system not detected",
+                )}
+          : {crsName(inventory.crs.source)} →{" "}
+          {crsName(
+            inventory.crs.source === "gk4"
+              ? "utm"
+              : inventory.crs.source === "utm"
+                ? "gk4"
+                : null,
+          )}
+        </strong>
+        <p>
+          {txt(
+            `Objekte im GK4-Bereich: ${inventory.crs.counts.gk4} · im UTM32-Bereich: ${inventory.crs.counts.utm} · sonstige: ${inventory.crs.counts.other}. Wie im Geodata Inspector aus den Wertebereichen bestimmt (DXF enthält meist keine CRS-Angabe).`,
+            `Objects in GK4 range: ${inventory.crs.counts.gk4} · in UTM32 range: ${inventory.crs.counts.utm} · other: ${inventory.crs.counts.other}. Determined from coordinate ranges as in Geodata Inspector (DXF rarely stores a CRS).`,
+          )}
+          {inventory.crs.mixed &&
+            txt(
+              " Beide Systeme kommen vor: Objekte des anderen Systems sind als auffällig markiert.",
+              " Both systems occur: objects in the other system are flagged.",
+            )}
+        </p>
+        <label className="crs-choice">
+          {txt("Richtung", "Direction")}
+          <select
+            value={direction}
+            disabled={busy}
+            onChange={(e) =>
+              onReinspect(Number(inventory.distance), e.target.value)
+            }
+          >
+            <option value="auto">
+              {txt("Automatisch erkennen", "Detect automatically")}
+            </option>
+            <option value="gk4-utm">GK4 → UTM32</option>
+            <option value="utm-gk4">UTM32 → GK4</option>
+          </select>
+        </label>
+      </div>
       <div className="stats">
         <div>
           <strong>{inventory.total.toLocaleString(lang)}</strong>
@@ -140,10 +195,7 @@ export function PreflightPanel({
       {inventory.qgisSymbols.length > 0 && (
         <div className="review-warning">
           <strong>
-            {txt(
-              "QGIS-Symbolblöcke erkannt",
-              "QGIS symbol blocks detected",
-            )}
+            {txt("QGIS-Symbolblöcke erkannt", "QGIS symbol blocks detected")}
           </strong>
           <p>
             {inventory.qgisSymbols
@@ -196,8 +248,7 @@ export function PreflightPanel({
           </button>
         </div>
       )}
-      {inventory.duplicates.sameLayer + inventory.duplicates.crossLayer >
-        0 && (
+      {inventory.duplicates.sameLayer + inventory.duplicates.crossLayer > 0 && (
         <div className="review-warning">
           <strong>
             {txt("Exakte Duplikate erkannt", "Exact duplicates detected")}
@@ -289,7 +340,7 @@ export function PreflightPanel({
               Number(distance) < 1 ||
               Number(distance) > 100000
             }
-            onClick={() => onReinspect(Number(distance))}
+            onClick={() => onReinspect(Number(distance), direction)}
           >
             {txt("Neu prüfen", "Recheck")}
           </button>

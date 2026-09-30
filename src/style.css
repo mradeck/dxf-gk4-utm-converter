@@ -84,6 +84,23 @@
 .suspect {
   background: var(--warning);
 }
+.crs-detect {
+  background: var(--soft);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+.crs-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.crs-choice select {
+  width: auto;
+  height: 34px;
+}
 .review-warning {
   background: var(--warning);
   color: var(--warning-ink);

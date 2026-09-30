@@ -36,6 +36,7 @@ import {
 type Issue = { type: string; handle: string; layer: string; message: string };
 type Report = {
   version: string;
+  direction: Direction;
   counts: Record<string, number>;
   layers: string[];
   dxfVersion: string;
@@ -59,17 +60,26 @@ type Report = {
   grid: { from: string; to: string; subgrids: number; sha256: string };
   samples: { source: number[]; target: number[] }[];
 };
-const VERSION = "26.09.9.0";
+type Direction = "gk4-utm" | "utm-gk4";
+const SYSTEMS = {
+  gk4: { name: "DHDN / GK Zone 4", epsg: "EPSG:31468", axes: "GK4 X / Y" },
+  utm: {
+    name: "ETRS89 / UTM Zone 32N",
+    epsg: "EPSG:25832",
+    axes: "UTM32 E / N",
+  },
+};
+const VERSION = "26.09.10.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
   de: {
     subtitle: "Das Koordinaten-Werkzeug für deine CAD-Pläne",
-    eyebrow: "GK4 → UTM32 · LOKAL IM BROWSER",
+    eyebrow: "GK4 ⇄ UTM32 · LOKAL IM BROWSER",
     title: "Neue Koordinaten.",
     title2: "Dein Plan bleibt deiner.",
     intro:
-      "DXF-Dateien analysieren und von Gauß-Krüger nach ETRS89 / UTM transformieren. Mit nachvollziehbarer Gittertransformation und Prüfprotokoll.",
+      "DXF-Dateien analysieren und zwischen Gauß-Krüger (GK4) und ETRS89 / UTM32 transformieren – die Richtung wird aus den Koordinaten erkannt. Mit nachvollziehbarer Gittertransformation und Prüfprotokoll.",
     source: "Ausgangssystem",
     target: "Zielsystem",
     local: "Kein Datei-Upload",
@@ -87,27 +97,23 @@ const dict = {
     nextLabel: "Nächster Schritt",
     next1a:
       "DXF-Datei in Schritt 01 ablegen oder auswählen – oder den Beispielplan ausprobieren.",
-    next1b: "In Schritt 01 auf „Datei prüfen“ klicken.",
     next23:
       "Schritt 02: Vorauswahl kontrollieren (standardmäßig ist alles ausgewählt). Danach in Schritt 03 auf „Auswahl transformieren“ klicken.",
     next4:
-      "Schritt 04: Ergebnis in der Vorschau kontrollieren, Hinweise bestätigen und „UTM-DXF herunterladen“ klicken.",
-    nextReady: "Alles bestätigt: „UTM-DXF herunterladen“ klicken.",
+      "Schritt 04: Ergebnis in der Vorschau kontrollieren und „DXF herunterladen“ klicken.",
     nextBlocked:
       "Export gesperrt: Prüfmeldungen in Schritt 04 beachten, Eingaben korrigieren und erneut prüfen.",
     lockedPreflight:
       "Erscheint, sobald die Datei in Schritt 01 mit „Datei prüfen“ eingelesen wurde.",
     lockedTransform:
       "Verfügbar nach der Vorprüfung. Das Gitter kann bereits jetzt gewählt werden.",
-    lockedResult:
-      "Erscheint nach „Auswahl transformieren“ in Schritt 03.",
+    lockedResult: "Erscheint nach „Auswahl transformieren“ in Schritt 03.",
     method: "Transformationsgitter",
     beta: "BeTA2007 · deutschlandweit · in der App enthalten",
     custom: "Eigenes NTv2-Gitter (.gsb)",
     grid: "Gitterdatei auswählen",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · bis 256 MB",
     tolerance: "Kurven-Segmentierung",
-    inspect: "Datei prüfen",
     analyze: "Auswahl transformieren",
     inspecting: "Objekte zählen und räumliche Gruppen prüfen …",
     cancel: "Abbrechen",
@@ -120,7 +126,7 @@ const dict = {
     map: "DXF auf Karte",
     empty: "Hier bekommt dein Plan neue Koordinaten.",
     emptyHint: "Wähle eine DXF-Datei oder starte mit dem Beispielplan.",
-    viewHint: "UTM32 · vereinfachte Vorschau · nicht maßstäblich",
+    viewHint: "Zielsystem · vereinfachte Vorschau · nicht maßstäblich",
     notice: "Das richtige Gitter entscheidet über die Genauigkeit.",
     betaNotice:
       "BeTA2007 ist für Geotopographie gedacht: Dezimeterbereich, keine zugesicherte Katastergenauigkeit.",
@@ -135,8 +141,9 @@ const dict = {
     layers: "Layer",
     exportObjects: "Exportobjekte",
     report: "Prüfprotokoll",
-    download: "UTM-DXF herunterladen",
-    ack: "Ich habe die Hinweise geprüft: Export als neue Modellbereich-Zeichnung, mit zerlegten Blöcken/Bemaßungen und segmentierten Kurven. Eignung des Gitters und Ergebnis werde ich anhand bekannter Punkte kontrollieren.",
+    download: "DXF herunterladen",
+    noCrs:
+      "Weder GK4- noch UTM32-Koordinaten erkannt. Bitte in Schritt 02 die Richtung wählen oder die Datei prüfen.",
     summary: "Ergebnis prüfen & herunterladen",
     changes: "Was sich beim Export ändert",
     technical: "Technische Prüfmeldungen",
@@ -151,13 +158,13 @@ const dict = {
       "Erst beim Laden werden OpenStreetMap-Kacheln abgerufen. Dabei werden IP-Adresse und Kartenausschnitt an den Kartenanbieter übermittelt.",
     noMap: "Noch keine gültige Ausdehnung vorhanden.",
     methodHelp:
-      "EPSG beschreibt das Koordinatensystem, nicht das konkrete Transformationsverfahren. NTv2 enthält ortsabhängige Verschiebungen zwischen DHDN und ETRS89. Objekte außerhalb der Gitterabdeckung werden mit Hinweis ausgelassen; der Teil-Export erfordert deine Bestätigung. Es gibt keinen stillen Ersatz durch eine ungenauere Methode.",
+      "EPSG beschreibt das Koordinatensystem, nicht das konkrete Transformationsverfahren. NTv2 enthält ortsabhängige Verschiebungen zwischen DHDN und ETRS89. Objekte außerhalb der Gitterabdeckung werden ausgelassen und im Protokoll aufgeführt. UTM → GK4 nutzt dasselbe Gitter in Gegenrichtung. Es gibt keinen stillen Ersatz durch eine ungenauere Methode.",
     toleranceHelp:
       "Bögen, Kreise, Splines und Polylinien werden als 3D-Polylinien exportiert. Die Einstellung steuert die Segmentierung (Standard 5 mm); sie ist keine Aussage zur absoluten Lagegenauigkeit. Geraden werden bei Bedarf zusätzlich unterteilt. Flächen und Netze behalten ihre Topologie; ihre Innenflächen werden nicht verdichtet.",
     fileHelp:
-      "Erwartet werden vollständige GK4-Koordinaten in Metern: X = Rechtswert (etwa 4,5 Millionen), Y = Hochwert. Keine vertauschten Achsen, lokalen Baukoordinaten, Millimeter oder DWG. Das Quell-CRS wird nicht automatisch erkannt; die Zahlen werden nur plausibilisiert.",
+      "Erwartet werden vollständige Koordinaten in Metern: GK4 mit X = Rechtswert (etwa 4,5 Millionen, führende Zonenziffer 4) oder UTM32 ohne Zonenziffer (X = Ostwert etwa 0,2–1 Million), jeweils Y = Hochwert. Die Richtung wird wie im Geodata Inspector aus den Wertebereichen erkannt, DXF enthält meist keine CRS-Angabe. Keine vertauschten Achsen, lokalen Baukoordinaten, Millimeter oder DWG. Die Analyse startet direkt nach dem Laden.",
     crsHelp:
-      "GK4: DHDN / Bessel, Mittelmeridian 12°, 3°-Streifen. UTM32: ETRS89 / GRS80, Mittelmeridian 9°, 6°-Zone. Ausgabe ohne vorangestellte Zonenziffer 32. Z-Werte werden weder in der Höhe noch im Höhenbezug geändert.",
+      "GK4: DHDN / Bessel, Mittelmeridian 12°, 3°-Streifen. UTM32: ETRS89 / GRS80, Mittelmeridian 9°, 6°-Zone. UTM-Ausgabe ohne vorangestellte Zonenziffer 32, GK4-Ausgabe mit Zonenziffer 4. Z-Werte werden weder in der Höhe noch im Höhenbezug geändert.",
     limits:
       "Unterstützt: Punkte, Linien, 2D-/3D-Polylinien, Bögen, Kreise, Ellipsen, Splines, Texte, ebene Schraffuren, 3D-Flächen/Netze, gleichmäßig skalierte Blöcke sowie darstellbare Bemaßungen/Multileader. Nicht sicher übertragbare Objekte werden protokolliert und nach Bestätigung ausgelassen, etwa XREF, Proxy-/ACIS-Objekte, breite Polylinien, XCLIP und gespiegelte/ungleichmäßig skalierte Blöcke. Ein betroffener Block wird vollständig ausgelassen. Falsche Einheiten, ungültige Gitter, unlesbare Dateien oder fehlerhafte/leere Ausgaben bleiben gesperrt. Keine DWG-Dateien.",
     modelHelp:
@@ -170,7 +177,7 @@ const dict = {
       "Kein verlustfreier CAD-Roundtrip. Vor produktiver Verwendung in CAD öffnen und mit unabhängigen Kontrollpunkten prüfen.",
     app: "DXF Coordinate Forge",
     readyHint:
-      "Die unterstützte Geometrie ist vorbereitet. Hinweise bestätigen, dann herunterladen.",
+      "Die unterstützte Geometrie ist als neue DXF zum Herunterladen bereit.",
     invalidHint:
       "Ein grundlegender Fehler verhindert eine sichere Ausgabe. Bitte die aufgelisteten Prüfmeldungen beachten. Einzelne Objektfehler allein sperren den übrigen Export nicht.",
     noSource: "Bitte zuerst eine DXF-Datei auswählen.",
@@ -187,11 +194,11 @@ const dict = {
   },
   en: {
     subtitle: "The coordinate tool for your CAD drawings",
-    eyebrow: "GK4 → UTM32 · IN YOUR BROWSER",
+    eyebrow: "GK4 ⇄ UTM32 · IN YOUR BROWSER",
     title: "New coordinates.",
     title2: "Your drawing stays yours.",
     intro:
-      "Analyze DXF files and transform Gauss–Krüger coordinates to ETRS89 / UTM. With an explicit grid transformation and an inspection report.",
+      "Analyze DXF files and transform between Gauss–Krüger (GK4) and ETRS89 / UTM32 – the direction is detected from the coordinates. With an explicit grid transformation and an inspection report.",
     source: "Source system",
     target: "Target system",
     local: "No file upload",
@@ -208,12 +215,9 @@ const dict = {
     flow: "Workflow",
     nextLabel: "Next step",
     next1a: "Drop or choose a DXF file in step 01 – or try the sample drawing.",
-    next1b: "Click “Inspect file” in step 01.",
     next23:
       "Step 02: review the preselection (everything is selected by default). Then click “Transform selection” in step 03.",
-    next4:
-      "Step 04: check the result in the preview, acknowledge the notes and click “Download UTM DXF”.",
-    nextReady: "Everything acknowledged: click “Download UTM DXF”.",
+    next4: "Step 04: check the result in the preview and click “Download DXF”.",
     nextBlocked:
       "Export blocked: review the messages in step 04, fix the input and inspect again.",
     lockedPreflight:
@@ -227,7 +231,6 @@ const dict = {
     grid: "Choose grid file",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · up to 256 MB",
     tolerance: "Curve segmentation",
-    inspect: "Inspect file",
     analyze: "Transform selection",
     inspecting: "Counting objects and checking spatial groups …",
     cancel: "Cancel",
@@ -240,7 +243,7 @@ const dict = {
     map: "DXF on map",
     empty: "A new coordinate system for your drawing.",
     emptyHint: "Choose a DXF file or try the sample drawing.",
-    viewHint: "UTM32 · simplified preview · not to scale",
+    viewHint: "Target system · simplified preview · not to scale",
     notice: "The right grid determines accuracy.",
     betaNotice:
       "BeTA2007 targets geotopographic data: decimetre-level accuracy, not assured cadastral accuracy.",
@@ -255,8 +258,9 @@ const dict = {
     layers: "Layers",
     exportObjects: "Output entities",
     report: "Inspection report",
-    download: "Download UTM DXF",
-    ack: "I have reviewed the notes: export creates a new model-space drawing with decomposed blocks/dimensions and segmented curves. I will check grid suitability and results against known control points.",
+    download: "Download DXF",
+    noCrs:
+      "Neither GK4 nor UTM32 coordinates detected. Choose the direction in step 02 or check the file.",
     summary: "Check result & download",
     changes: "What changes during export",
     technical: "Technical inspection messages",
@@ -271,13 +275,13 @@ const dict = {
       "OpenStreetMap tiles are only requested when enabled. This sends your IP address and the map area to the tile provider.",
     noMap: "No valid extent available yet.",
     methodHelp:
-      "EPSG identifies a coordinate system, not the specific transformation operation. NTv2 stores location-dependent shifts between DHDN and ETRS89. Objects outside grid coverage are reported and omitted; partial export requires your confirmation. There is no silent fallback to a less accurate method.",
+      "EPSG identifies a coordinate system, not the specific transformation operation. NTv2 stores location-dependent shifts between DHDN and ETRS89. Objects outside grid coverage are omitted and listed in the report. UTM → GK4 applies the same grid in reverse. There is no silent fallback to a less accurate method.",
     toleranceHelp:
       "Arcs, circles, splines and polylines are exported as 3D polylines. This setting controls segmentation (default 5 mm), not absolute positional accuracy. Lines are subdivided where needed. Faces and meshes retain their topology; their interiors are not densified.",
     fileHelp:
-      "Full GK4 coordinates in metres are required: X = easting (about 4.5 million), Y = northing. No swapped axes, local site coordinates, millimetres or DWG. The source CRS is not automatically detected; coordinates are only checked for plausibility.",
+      "Full coordinates in metres are required: GK4 with X = easting (about 4.5 million, zone prefix 4) or UTM32 without zone prefix (X = easting about 0.2–1 million), Y = northing in both. As in Geodata Inspector, the direction is detected from the coordinate ranges; DXF rarely stores a CRS. No swapped axes, local site coordinates, millimetres or DWG. Analysis starts right after loading.",
     crsHelp:
-      "GK4: DHDN / Bessel, central meridian 12°, 3° strip. UTM32: ETRS89 / GRS80, central meridian 9°, 6° zone. Output has no leading zone number 32. Z values and the vertical datum are unchanged.",
+      "GK4: DHDN / Bessel, central meridian 12°, 3° strip. UTM32: ETRS89 / GRS80, central meridian 9°, 6° zone. UTM output has no leading zone number 32, GK4 output keeps zone prefix 4. Z values and the vertical datum are unchanged.",
     limits:
       "Supported: points, lines, 2D/3D polylines, arcs, circles, ellipses, splines, text, horizontal hatches, 3D faces/meshes, uniformly scaled blocks and renderable dimensions/multileaders. Objects that cannot be safely converted are reported and omitted after confirmation, including XREF, proxy/ACIS objects, wide polylines, XCLIP and mirrored/non-uniform blocks. An affected block is omitted entirely. Wrong units, invalid grids, unreadable files and invalid/empty outputs still block export. No DWG files.",
     modelHelp:
@@ -289,8 +293,7 @@ const dict = {
     warningIntro:
       "Not a lossless CAD round trip. Open the result in CAD and check independent control points before production use.",
     app: "DXF Coordinate Forge",
-    readyHint:
-      "Supported geometry is ready. Acknowledge the notes to download.",
+    readyHint: "Supported geometry is ready to download as a new DXF.",
     invalidHint:
       "A fundamental error prevents safe output. Review the listed messages. Individual object failures alone do not block the remaining export.",
     noSource: "Please select a DXF file first.",
@@ -446,7 +449,7 @@ function Drawing({ report }: { report: Report }) {
     <svg
       className="drawing"
       role="img"
-      aria-label="UTM32 DXF preview"
+      aria-label="DXF preview"
       viewBox={`${-pad} ${-pad} ${width + 2 * pad} ${height + 2 * pad}`}
     >
       <g transform={`translate(0,${height}) scale(1,-1)`}>
@@ -497,8 +500,6 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("runtime");
   const [error, setError] = useState("");
-  const [ack, setAck] = useState(false);
-  const [omissionAck, setOmissionAck] = useState(false);
   const [tab, setTab] = useState("map");
   const [mapConsent, setMapConsent] = useState(false);
   const [demo, setDemo] = useState(false);
@@ -525,8 +526,6 @@ function App() {
   }, [report]);
   const invalidate = () => {
     setReport(null);
-    setAck(false);
-    setOmissionAck(false);
     setError("");
   };
   const choose = (f: File | undefined) => {
@@ -545,6 +544,7 @@ function App() {
       return;
     }
     setFile(f);
+    void inspect(false, f);
   };
   const cancel = () => {
     taskRef.current++;
@@ -579,7 +579,7 @@ function App() {
         if (data.type === "export")
           save(
             data.output,
-            `${nameRef.current}_EPSG25832.dxf`,
+            `${nameRef.current}_${String(data.target).replace(":", "")}.dxf`,
             "application/dxf",
           );
       };
@@ -594,11 +594,11 @@ function App() {
     }
     return worker.current;
   }
-  async function inspect(useDemo = false) {
+  async function inspect(useDemo = false, chosen: File | null = file) {
     invalidate();
     setInventory(null);
     setSelection(null);
-    if (!file && !useDemo) {
+    if (!chosen && !useDemo) {
       setError(t.noSource);
       return;
     }
@@ -606,10 +606,12 @@ function App() {
     setDemo(useDemo);
     if (useDemo) setFile(null);
     setStage("runtime");
-    nameRef.current = useDemo ? "demo-gk4" : file!.name.replace(/\.dxf$/i, "");
+    nameRef.current = useDemo
+      ? "demo-gk4"
+      : chosen!.name.replace(/\.dxf$/i, "");
     const task = ++taskRef.current;
     try {
-      const data = useDemo ? null : await file!.arrayBuffer();
+      const data = useDemo ? null : await chosen!.arrayBuffer();
       if (task !== taskRef.current) return;
       getWorker().postMessage(
         { type: "inspect", demo: useDemo, file: data },
@@ -622,15 +624,19 @@ function App() {
       }
     }
   }
-  function reinspect(distance: number) {
+  function reinspect(distance: number, direction: string) {
     invalidate();
     setBusy(true);
     setStage("inspecting");
-    getWorker().postMessage({ type: "reinspect", distance });
+    getWorker().postMessage({ type: "reinspect", distance, direction });
   }
   async function run() {
     invalidate();
     if (!inventory || !selection || !selected.length) return;
+    if (!inventory.crs.direction) {
+      setError(t.noCrs);
+      return;
+    }
     if (method === "custom" && !grid) {
       setError(t.missingGrid);
       return;
@@ -650,6 +656,7 @@ function App() {
             selectedIds: selected.map((e) => e.id),
             excludePoints: selection.excludePoints,
             symbolsAsPoints: selection.symbolsAsPoints,
+            direction: inventory.crs.direction,
           },
         },
         gridData ? [gridData] : [],
@@ -669,16 +676,18 @@ function App() {
   const next = busy
     ? t[stage as "runtime" | "libraries" | "processing" | "inspecting"]
     : !inventory
-      ? file
-        ? t.next1b
-        : t.next1a
+      ? t.next1a
       : !report
         ? t.next23
         : blocked
           ? t.nextBlocked
-          : !ack || (report.requiresConfirmation && !omissionAck)
-            ? t.next4
-            : t.nextReady;
+          : t.next4;
+  const direction: Direction =
+    report?.direction ?? inventory?.crs.direction ?? "gk4-utm";
+  const [from, to] =
+    direction === "utm-gk4"
+      ? [SYSTEMS.utm, SYSTEMS.gk4]
+      : [SYSTEMS.gk4, SYSTEMS.utm];
   return (
     <>
       <header className="header">
@@ -748,8 +757,8 @@ function App() {
               <span className="crs-dot" />
               <div>
                 <small>{t.source}</small>
-                <strong>DHDN / GK Zone 4</strong>
-                <code>EPSG:31468</code>
+                <strong>{from.name}</strong>
+                <code>{from.epsg}</code>
               </div>
             </div>
             <div className="crs-link">
@@ -761,8 +770,8 @@ function App() {
               <span className="crs-dot target" />
               <div>
                 <small>{t.target}</small>
-                <strong>ETRS89 / UTM Zone 32N</strong>
-                <code>EPSG:25832</code>
+                <strong>{to.name}</strong>
+                <code>{to.epsg}</code>
               </div>
             </div>
           </div>
@@ -832,15 +841,6 @@ function App() {
                 accept=".dxf"
                 onChange={(e) => choose(e.target.files?.[0])}
               />
-              <button
-                disabled={busy || !file}
-                className="primary analyze"
-                onClick={() => inspect(false)}
-              >
-                <FileSearch size={18} />
-                {t.inspect}
-                <ArrowRight size={17} />
-              </button>
               <button
                 disabled={busy}
                 className="demo-button"
@@ -972,7 +972,10 @@ function App() {
                     {
                       t[
                         stage as
-                          "runtime" | "libraries" | "processing" | "inspecting"
+                          | "runtime"
+                          | "libraries"
+                          | "processing"
+                          | "inspecting"
                       ]
                     }
                   </p>
@@ -1002,7 +1005,7 @@ function App() {
                     {t.map}
                   </button>
                 </div>
-                <span className="chip">{demo ? "DEMO" : "EPSG:25832"}</span>
+                <span className="chip">{demo ? "DEMO" : to.epsg}</span>
               </div>
               <div className="viewport">
                 {report?.targetBounds ? (
@@ -1189,20 +1192,6 @@ function App() {
                           ))}
                         </div>
                       </details>
-                      {!blocked && (
-                        <label className="ack">
-                          <input
-                            type="checkbox"
-                            checked={omissionAck}
-                            onChange={(e) => setOmissionAck(e.target.checked)}
-                          />
-                          <span>
-                            {lang === "de"
-                              ? `Ich bestätige den unvollständigen Export: ${report.omitted.length} aufgelistete Quellobjekte fehlen. Zusätzlich akzeptiere ich die genannten POINT-Filter innerhalb von Blöcken und mögliche Recovery-/Audit-Verluste. Das Original bleibt unverändert.`
-                              : `I confirm partial export: ${report.omitted.length} listed source objects are omitted. I also accept the reported POINT filtering inside blocks and possible recovery/audit losses. The original remains unchanged.`}
-                          </span>
-                        </label>
-                      )}
                     </div>
                   )}
                   <details className="disclosure" open>
@@ -1223,8 +1212,8 @@ function App() {
                       <table>
                         <thead>
                           <tr>
-                            <th>GK4 X / Y</th>
-                            <th>UTM32 E / N</th>
+                            <th>{from.axes}</th>
+                            <th>{to.axes}</th>
                             <th>Z</th>
                           </tr>
                         </thead>
@@ -1250,30 +1239,12 @@ function App() {
                       </table>
                     </div>
                   </details>
-                  {!blocked && (
-                    <label className="ack">
-                      <input
-                        type="checkbox"
-                        checked={ack}
-                        onChange={(e) => setAck(e.target.checked)}
-                      />
-                      <span>{t.ack}</span>
-                    </label>
-                  )}
                   <div className="download-row">
                     <button
                       className="primary"
-                      disabled={
-                        blocked ||
-                        !ack ||
-                        busy ||
-                        (report.requiresConfirmation && !omissionAck)
-                      }
+                      disabled={blocked || busy}
                       onClick={() =>
-                        worker.current?.postMessage({
-                          type: "export",
-                          confirmOmissions: omissionAck,
-                        })
+                        worker.current?.postMessage({ type: "export" })
                       }
                     >
                       <ArrowDownToLine size={18} />

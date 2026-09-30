@@ -18,22 +18,32 @@ from ezdxf.explode import attrib_to_text
 from ezdxf.layouts import VirtualLayout
 from ezdxf.entities import Point
 from pyproj import Transformer, network
-from preflight import read_document, inspect_document, issue, QGIS_SYMBOL
+from preflight import read_document, inspect_document, issue, QGIS_SYMBOL, EASTING, NORTHING, LABELS
 
 network.set_network_enabled(False)
-VERSION = "26.09.9.0"
+VERSION = "26.09.10.0"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
 
-def make_transform(grid):
+GK4 = "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel"
+UTM32 = "+proj=utm +zone=32 +ellps=GRS80"
+CRS = {"gk4-utm": ("EPSG:31468", "EPSG:25832"), "utm-gk4": ("EPSG:25832", "EPSG:31468")}
+
+
+def make_transform(grid, direction="gk4-utm"):
     # Explicit operation: NEVER fall back to a null grid or ballpark Helmert.
+    # UTM -> GK4 applies the same NTv2 grid inversely (PROJ iterates the inverse).
     grid = os.path.abspath(grid)
-    return Transformer.from_pipeline(
-        "+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=12 +k=1 "
-        "+x_0=4500000 +y_0=0 +ellps=bessel +step +proj=hgridshift "
-        f"+grids={grid} +step +proj=utm +zone=32 +ellps=GRS80"
-    )
+    if direction == "utm-gk4":
+        return Transformer.from_pipeline(f"+proj=pipeline +step +inv {UTM32} +step +inv +proj=hgridshift +grids={grid} +step {GK4}")
+    return Transformer.from_pipeline(f"+proj=pipeline +step +inv {GK4} +step +proj=hgridshift +grids={grid} +step {UTM32}")
+
+
+def make_geographic(grid, direction="gk4-utm"):
+    # Preview only: target coordinates -> ETRS89 lon/lat in degrees.
+    target = UTM32 if direction == "gk4-utm" else f"{GK4} +step +proj=hgridshift +grids={os.path.abspath(grid)}"
+    return Transformer.from_pipeline(f"+proj=pipeline +step +inv {target} +step +proj=unitconvert +xy_in=rad +xy_out=deg")
 
 
 def inspect_grid(filename):
@@ -71,8 +81,12 @@ class Conversion:
         self.options = options or {}
         self.audit = audit or {"errors": 0, "repairs": 0, "recovered": False, "findings": []}
         self.tol = tolerance
-        self.tr = make_transform(grid)
-        self.geo = Transformer.from_crs(25832, 4326, always_xy=True)
+        self.direction = self.options.get("direction") or "gk4-utm"
+        if self.direction not in CRS:
+            raise ValueError("Unknown transformation direction.")
+        self.system = self.direction.split("-")[0]
+        self.tr = make_transform(grid, self.direction)
+        self.geo = make_geographic(grid, self.direction)
         self.output = ezdxf.new("R2018")
         importer = Importer(source, self.output)
         importer.import_tables(["layers", "linetypes", "styles"])
@@ -98,9 +112,10 @@ class Conversion:
         p = Vec3(point)
         if not all(math.isfinite(v) for v in p):
             raise ValueError("Non-finite coordinate.")
-        # Full GK4 easting required. Prevent swapped axes, local drawings, and UTM input.
-        if not (4_000_000 <= p.x <= 5_000_000 and 5_000_000 <= p.y <= 6_200_000):
-            raise ValueError("Coordinates do not look like full GK4 metres (X=Rechtswert, Y=Hochwert).")
+        # Full source coordinates required. Prevent swapped axes, local drawings and the other system.
+        low, high = EASTING[self.system]
+        if not (low <= p.x <= high and NORTHING[0] <= p.y <= NORTHING[1]):
+            raise ValueError(f"Coordinates do not look like {LABELS[self.system]}.")
         x, y = self.tr.transform(p.x, p.y, errcheck=True)
         if not math.isfinite(x + y):
             raise ValueError("Point outside transformation grid.")
@@ -386,7 +401,7 @@ class Conversion:
             self.output.set_modelspace_vport(height=max(20, b[3]-b[1])*1.2, center=((b[0]+b[2])/2, (b[1]+b[3])/2))
         valid_bounds = all(math.isfinite(v) for v in b)
         requires_confirmation = bool(self.omitted or self.audit["errors"] or self.audit["repairs"] or self.audit["recovered"] or self.warnings.get("nestedPoints"))
-        report = {"version": VERSION, "sourceCRS": "EPSG:31468", "targetCRS": "EPSG:25832", "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if valid_bounds else None, "targetBounds": self.output_bounds if valid_bounds else None, "preview": self.preview, "supported": sorted(SUPPORTED),
+        report = {"version": VERSION, "direction": self.direction, "sourceCRS": CRS[self.direction][0], "targetCRS": CRS[self.direction][1], "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if valid_bounds else None, "targetBounds": self.output_bounds if valid_bounds else None, "preview": self.preview, "supported": sorted(SUPPORTED),
                   "omitted": self.omitted, "audit": self.audit, "requiresConfirmation": requires_confirmation, "successfulSources": self.successful_sources, "failedSources": self.failed_sources, "selectedOmissions": self.selected_omissions, "previewMeta": self.preview_meta, "previewLimited": len(self.preview) >= 1500, "geographicPreview": []}
         if valid_bounds:
             corners = [self.geo.transform(x,y) for x in [b[0],b[2]] for y in [b[1],b[3]]]

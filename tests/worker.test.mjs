@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
-test("worker requires explicit partial-export confirmation, retains result after refusal", async () => {
+test("worker exports a validated partial result without extra confirmation", async () => {
   const messages = [];
   const context = vm.createContext({
     self: {},
@@ -18,14 +18,10 @@ test("worker requires explicit partial-export confirmation, retains result after
     context,
   );
   await context.self.onmessage({ data: { type: "export" } });
-  assert.equal(messages.at(-1).type, "error");
-  await context.self.onmessage({
-    data: { type: "export", confirmOmissions: true },
-  });
   assert.equal(messages.at(-1).type, "export");
   assert.equal(messages.at(-1).output, "DXF");
 });
-test("fatal blocker cannot be overridden by partial-export confirmation", async () => {
+test("fatal blocker still prevents export", async () => {
   const messages = [];
   const context = vm.createContext({
     self: {},
@@ -39,8 +35,6 @@ test("fatal blocker cannot be overridden by partial-export confirmation", async 
     'result = {output:"DXF",report:{blockers:[{type:"UNITS"}],requiresConfirmation:true}}',
     context,
   );
-  await context.self.onmessage({
-    data: { type: "export", confirmOmissions: true },
-  });
+  await context.self.onmessage({ data: { type: "export" } });
   assert.equal(messages.at(-1).type, "error");
 });

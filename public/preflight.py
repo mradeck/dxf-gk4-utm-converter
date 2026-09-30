@@ -42,6 +42,38 @@ def read_document(filename):
 QGIS_SYMBOL = re.compile(r"symbolLayer\d+")
 
 
+# Full-coordinate ranges (metres) of the two supported systems do not overlap:
+# GK4 eastings carry the zone prefix 4 (x_0 = 4,500,000), UTM32 eastings here
+# are given without zone prefix. Northings cover Germany in both systems.
+EASTING = {"gk4": (4_000_000, 5_000_000), "utm": (100_000, 1_000_000)}
+NORTHING = (5_000_000, 6_200_000)
+DIRECTIONS = {"gk4": "gk4-utm", "utm": "utm-gk4"}
+LABELS = {"gk4": "full GK4 metres (X=Rechtswert with prefix 4, Y=Hochwert)", "utm": "UTM32 metres without zone prefix (X=easting, Y=northing)"}
+
+
+def coordinate_system(b):
+    for name, (low, high) in EASTING.items():
+        if low <= b[0] <= b[2] <= high and NORTHING[0] <= b[1] <= b[3] <= NORTHING[1]:
+            return name
+    return None
+
+
+def detect_system(entries, direction="auto"):
+    """Range heuristic as in geodata-inspector-cleaner: no CRS metadata in DXF,
+    so the coordinate ranges decide; a forced direction overrides detection."""
+    counts = Counter(coordinate_system(e["bounds"]) for e in entries if e["bounds"])
+    known = {k: counts.get(k, 0) for k in EASTING}
+    if direction in DIRECTIONS.values():
+        source, mode = next(k for k, v in DIRECTIONS.items() if v == direction), "manual"
+    elif any(known.values()):
+        source, mode = max(known, key=known.get), "detected"
+    else:
+        source, mode = None, "unknown"
+    return {"source": source, "direction": DIRECTIONS.get(source), "mode": mode,
+            "counts": {**known, "other": sum(counts.values()) - sum(known.values())},
+            "mixed": all(known.values())}
+
+
 def symbol_size(source, name, cache):
     if name not in cache:
         extent = bbox.extents(source.blocks.get(name) or [], fast=True)
@@ -197,7 +229,7 @@ def cluster_entries(entries, distance):
     return clusters, conservative
 
 
-def inspect_document(source, audit=None, distance=1000):
+def inspect_document(source, audit=None, distance=1000, direction="auto"):
     if not math.isfinite(distance) or not 1 <= distance <= 100000:
         raise ValueError("Cluster distance must be between 1 and 100,000 metres.")
     entries = []
@@ -210,10 +242,6 @@ def inspect_document(source, audit=None, distance=1000):
                "zeroZ": False, "medianZ": None}
         try:
             row.update(spatial_stats(e))
-            b = row["bounds"]
-            row["plausible"] = 4_000_000 <= b[0] <= b[2] <= 5_000_000 and 5_000_000 <= b[1] <= b[3] <= 6_200_000
-            if not row["plausible"]:
-                row["reason"] = "Outside plausible full GK4 metre range; review CRS / location."
         except Exception as error:
             row["reason"] = str(error)
         if e.dxftype() == "INSERT" and QGIS_SYMBOL.fullmatch(e.dxf.name):
@@ -222,6 +250,12 @@ def inspect_document(source, audit=None, distance=1000):
             symbols[e.dxf.name] += 1
             row["reason"] = row["reason"] or f"QGIS symbol block {e.dxf.name} (about {size:,.1f} m): marker from a symbology export, not drawing geometry."
         entries.append(row)
+    crs = detect_system(entries, direction)
+    for row in entries:
+        if row["bounds"]:
+            row["plausible"] = crs["source"] is not None and coordinate_system(row["bounds"]) == crs["source"]
+            if not row["plausible"] and not row["reason"]:
+                row["reason"] = f"Outside the {LABELS[crs['source']]} range; review CRS / location." if crs["source"] else "Neither GK4 nor UTM32 coordinate range; review CRS / location."
     duplicates = find_duplicates(source, entries)
     clusters, conservative = cluster_entries(entries, distance)
     plausible = [c for c in clusters if c["plausible"]]
@@ -244,6 +278,7 @@ def inspect_document(source, audit=None, distance=1000):
             "dominant": dominant, "ratio": ratio, "conservative": conservative, "distance": distance,
             "fullBounds": full, "focusBounds": focus, "inflation": extent(full)/extent(focus) if extent(focus) > 0 else None,
             "zeroZCount": sum(e["zeroZ"] and e["cluster"] == (primary or {}).get("id") for e in entries) if zero_warning else 0,
+            "crs": crs,
             "duplicates": duplicates,
             "qgisSymbols": [{"block": name, "count": count, "size": symbol_sizes[name]} for name, count in sorted(symbols.items())],
             "audit": audit or {"recovered": False, "errors": 0, "repairs": 0, "findings": []}}

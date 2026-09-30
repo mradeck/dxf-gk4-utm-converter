@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "public"))
 from preflight import inspect_document, cluster_entries
 from engine import process_document, Conversion
+from ezdxf.math import Vec3
 
 GRID = str(ROOT / "public/grids/BETA2007.gsb")
 X, Y = 4468000, 5335000
@@ -182,3 +183,26 @@ def test_exact_duplicates_follow_geodata_inspector_policy():
     assert [x.get("duplicateKind") for x in e]==[None,"same-layer","cross-layer",None,None,"same-layer",None]
     assert e[1]["duplicateOf"]=="e0" and e[2]["duplicateOf"]=="e0" and e[5]["duplicateOf"]=="e4"
     assert "Exact duplicate" in e[1]["reason"]
+
+def test_direction_is_detected_and_utm_roundtrip_is_exact():
+    doc,m=drawing()
+    m.add_line((X,Y,7),(X+30,Y+40,7))
+    r=inspect_document(doc)
+    assert r["crs"]["source"]=="gk4" and r["crs"]["direction"]=="gk4-utm" and r["entries"][0]["plausible"]
+    rep,out=process_document(doc,GRID)
+    utm=ezdxf.read(io.StringIO(out))
+    u=inspect_document(utm)
+    assert u["crs"]=={"source":"utm","direction":"utm-gk4","mode":"detected","counts":{"gk4":0,"utm":1,"other":0},"mixed":False}
+    back,out2=process_document(utm,GRID,options={"direction":"utm-gk4"})
+    assert back["sourceCRS"]=="EPSG:25832" and back["targetCRS"]=="EPSG:31468" and not back["omitted"]
+    start=ezdxf.read(io.StringIO(out2)).modelspace()[0]
+    assert (Vec3(next(iter(start.points())))-Vec3(X,Y,7)).magnitude < 1e-6
+    assert 10 < back["geographicBounds"][0][0] < 13 and 47 < back["geographicBounds"][0][1] < 50
+
+def test_forced_direction_marks_other_system_implausible():
+    doc,m=drawing()
+    m.add_point((X,Y)); m.add_point((691000,5336000))
+    r=inspect_document(doc,direction="utm-gk4")
+    assert r["crs"]["mode"]=="manual" and r["crs"]["mixed"]
+    assert [e["plausible"] for e in r["entries"]]==[False,True]
+    assert "UTM32" in r["entries"][0]["reason"]
