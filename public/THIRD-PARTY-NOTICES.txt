@@ -1,4 +1,4 @@
-DXF Coordinate Forge — v26.09.13.0
+DXF Coordinate Forge — v26.09.14.0
 Copyright (c) 2026 Michael Radeck
 
 Transformation grid: BeTA2007 (DHDN90 -> ETRS89), AdV / German surveying authorities.
