@@ -68,11 +68,11 @@ python3 -m venv .venv
 npm test
 ```
 
-Runtime tests exercise the same engine in actual Pyodide/WebAssembly. Native tests inspect exported DXF structures, coordinates, height preservation and safety failures. User-specific AutoCAD Map 3D comparison still requires an original/transformed sample pair. Always check independent known control points before production use.
+GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests and the Node/WebAssembly tests on every pull request and on pushes to `main`; it uploads no artifacts. Runtime tests exercise the same engine in actual Pyodide/WebAssembly. Native tests inspect exported DXF structures, coordinates, height preservation and safety failures. User-specific AutoCAD Map 3D comparison still requires an original/transformed sample pair. Always check independent known control points before production use.
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.6.0`. npm: `26.9.6`.
+Display: `YY.MM.feature.fix` → `26.09.7.0`. npm: `26.9.7`.
 
 ## License
 
