@@ -1,4 +1,4 @@
-DXF Coordinate Forge — v26.09.5.0
+DXF Coordinate Forge — v26.09.6.0
 Copyright (c) 2026 Michael Radeck
 
 Transformation grid: BeTA2007 (DHDN90 -> ETRS89), AdV / German surveying authorities.
@@ -35,6 +35,8 @@ Tiles are requested only after enabling the OSM background.
 Spatial-review policy inspired by Geodata Inspector & Cleaner, Michael Radeck:
 https://github.com/mradeck/geodata-inspector-cleaner/tree/e4a2721de903b5aedca6be469d8d51ff4a51621e
 Reimplemented for DXF object inventories; no automatic outlier deletion.
+Exact-duplicate policy (same-layer / cross-layer, A/B, handles ignored) follows
+https://github.com/mradeck/geodata-inspector-cleaner/blob/bd3716a2bea67425e8d68cca24d97d52afc51678/src/duplicates/dxfDuplicates.ts
 
 No endorsement by any surveying authority is implied.
 This tool is not a cadastral certification or a lossless CAD converter.

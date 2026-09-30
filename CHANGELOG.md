@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.6.0 — 2026-09-30
+
+- Exact duplicate detection in the preflight following Geodata Inspector & Cleaner: same-layer and cross-layer categories, A/B semantics, no tolerance, handles ignored; per-category “exclude all B” and per-object findings.
+
 ## 26.09.5.0 — 2026-09-30
 
 - Optional conversion of QGIS symbol blocks (`symbolLayer<n>`) to POINTs at their insertion point, keeping Z, layer and colour; reported as a transformation note.

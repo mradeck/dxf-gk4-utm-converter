@@ -11,6 +11,7 @@ from statistics import median
 import numpy as np
 import ezdxf
 from ezdxf import bbox, recover
+from ezdxf.lldxf.tagwriter import TagCollector
 from ezdxf.math import Vec3
 
 
@@ -46,6 +47,48 @@ def symbol_size(source, name, cache):
         extent = bbox.extents(source.blocks.get(name) or [], fast=True)
         cache[name] = max(extent.size.x, extent.size.y) if extent.has_data else 0.0
     return cache[name]
+
+
+def signature(tags, ignore_layer):
+    # Policy of geodata-inspector-cleaner (dxfDuplicates.ts): handles are identity,
+    # not content; internal owner references are canonicalized; everything else,
+    # including Z, properties and vertex order, must match exactly.
+    local = {}
+    for code, value in tags:
+        if code == 5:
+            local[str(value).upper()] = f"local-{len(local)}"
+    return tuple((code, local.get(str(value).upper(), value) if code == 330 else value)
+                 for code, value in tags if code != 5 and not (ignore_layer and code == 8))
+
+
+def find_duplicates(source, entries):
+    """Exact duplicates among model-space objects; B is flagged, A is kept."""
+    groups = defaultdict(list)
+    for row, e in zip(entries, source.modelspace()):
+        collector = TagCollector(dxfversion=source.dxfversion)
+        e.export_dxf(collector)
+        tags = [(t.code, t.value) for t in collector.tags]
+        groups[signature(tags, True)].append((row, signature(tags, False)))
+    counts = Counter()
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        exact, first = {}, None
+        for row, key in members:
+            keeper = exact.get(key)
+            if keeper is None:
+                exact[key] = row
+                if first is None:
+                    first = row
+                    continue
+                keeper, kind = first, "cross-layer"
+            else:
+                kind = "same-layer"
+            row["duplicateOf"], row["duplicateKind"] = keeper["id"], kind
+            counts[kind] += 1
+            where = "same layer" if kind == "same-layer" else f"layer {keeper['layer']}"
+            row["reason"] = row["reason"] or f"Exact duplicate of #{keeper['handle']} ({where})."
+    return {"sameLayer": counts["same-layer"], "crossLayer": counts["cross-layer"]}
 
 
 def spatial_stats(e):
@@ -179,6 +222,7 @@ def inspect_document(source, audit=None, distance=1000):
             symbols[e.dxf.name] += 1
             row["reason"] = row["reason"] or f"QGIS symbol block {e.dxf.name} (about {size:,.1f} m): marker from a symbology export, not drawing geometry."
         entries.append(row)
+    duplicates = find_duplicates(source, entries)
     clusters, conservative = cluster_entries(entries, distance)
     plausible = [c for c in clusters if c["plausible"]]
     primary = plausible[0] if len(plausible) == 1 else (clusters[0] if clusters else None)
@@ -200,5 +244,6 @@ def inspect_document(source, audit=None, distance=1000):
             "dominant": dominant, "ratio": ratio, "conservative": conservative, "distance": distance,
             "fullBounds": full, "focusBounds": focus, "inflation": extent(full)/extent(focus) if extent(focus) > 0 else None,
             "zeroZCount": sum(e["zeroZ"] and e["cluster"] == (primary or {}).get("id") for e in entries) if zero_warning else 0,
+            "duplicates": duplicates,
             "qgisSymbols": [{"block": name, "count": count, "size": symbol_sizes[name]} for name, count in sorted(symbols.items())],
             "audit": audit or {"recovered": False, "errors": 0, "repairs": 0, "findings": []}}
