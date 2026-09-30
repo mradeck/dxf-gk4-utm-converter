@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.7.0 — 2026-09-30
+
+- GitHub Actions workflow: build (typecheck), Python engine tests and Node/WebAssembly runtime tests on every pull request and push to `main`; no artifacts uploaded.
+
 ## 26.09.6.0 — 2026-09-30
 
 - Exact duplicate detection in the preflight following Geodata Inspector & Cleaner: same-layer and cross-layer categories, A/B semantics, no tolerance, handles ignored; per-category “exclude all B” and per-object findings.
