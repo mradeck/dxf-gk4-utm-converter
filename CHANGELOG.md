@@ -1,5 +1,12 @@
 # Changelog
 
+## 26.09.3.0 — 2026-09-30
+
+- Linear workflow: step bar (01–04) with current state and a “next step” hint naming the exact button to click.
+- Transformation settings (step 03) moved directly below the preflight (step 02), so steps follow reading order instead of alternating between columns.
+- Placeholders explain when steps 02–04 become available; automatic scrolling to the preflight after inspection and to the preview after transformation.
+- Grid option states that BeTA2007 is bundled with the app.
+
 ## 26.09.2.0 — 2026-09-22
 
 - Local preflight before transformation: counts, spatial groups, GK4 plausibility, extent inflation and per-object findings.

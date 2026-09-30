@@ -450,6 +450,63 @@ h1 em {
   color: var(--accent);
   width: 12px;
 }
+.stepper {
+  display: block;
+  margin-bottom: 24px;
+}
+.stepper ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.stepper a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.stepper .step {
+  display: inline-flex;
+  align-items: center;
+}
+.stepper .active a {
+  border-color: var(--accent);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.stepper .done a {
+  color: var(--accent);
+}
+.next-step {
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.transform > * {
+  max-width: 560px;
+}
+.continue-link {
+  display: block;
+  margin: 18px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
 .workspace {
   display: grid;
   grid-template-columns: 355px minmax(0, 1fr);
@@ -543,7 +600,8 @@ h2 {
   border: 0;
   padding: 5px;
 }
-.controls label {
+.controls label,
+.transform label {
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -551,7 +609,8 @@ h2 {
   margin: 20px 0 8px;
   font-weight: 600;
 }
-.controls label:first-of-type {
+.controls label:first-of-type,
+.transform label:first-of-type {
   margin-top: 0;
 }
 select {
@@ -1186,6 +1245,10 @@ footer a {
   .workspace {
     grid-template-columns: 1fr;
   }
+  .stepper ol {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
   .controls,
   .results {
     display: contents;
@@ -1196,7 +1259,7 @@ footer a {
   .preflight {
     order: 2;
   }
-  .controls > .panel:nth-child(2) {
+  .transform {
     order: 3;
   }
   .notice {

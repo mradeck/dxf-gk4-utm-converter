@@ -59,7 +59,7 @@ type Report = {
   grid: { from: string; to: string; subgrids: number; sha256: string };
   samples: { source: number[]; target: number[] }[];
 };
-const VERSION = "26.09.2.0";
+const VERSION = "26.09.3.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -76,14 +76,33 @@ const dict = {
     model: "Nur Modellbereich",
     height: "Z bleibt unverändert",
     file: "Deine DXF-Datei",
-    step1: "Datei auswählen",
+    step1: "Datei auswählen & prüfen",
     drop: "DXF hier ablegen",
     browse: "oder Datei auswählen",
     fileHint: "ASCII & binäre DXF · bis 25 MB",
     demo: "Mit Beispielplan ausprobieren",
     step2: "Transformation festlegen",
+    stepPreflight: "Vorprüfung & Auswahl",
+    flow: "Ablauf",
+    nextLabel: "Nächster Schritt",
+    next1a:
+      "DXF-Datei in Schritt 01 ablegen oder auswählen – oder den Beispielplan ausprobieren.",
+    next1b: "In Schritt 01 auf „Datei prüfen“ klicken.",
+    next23:
+      "Schritt 02: Vorauswahl kontrollieren (standardmäßig ist alles ausgewählt). Danach in Schritt 03 auf „Auswahl transformieren“ klicken.",
+    next4:
+      "Schritt 04: Ergebnis in der Vorschau kontrollieren, Hinweise bestätigen und „UTM-DXF herunterladen“ klicken.",
+    nextReady: "Alles bestätigt: „UTM-DXF herunterladen“ klicken.",
+    nextBlocked:
+      "Export gesperrt: Prüfmeldungen in Schritt 04 beachten, Eingaben korrigieren und erneut prüfen.",
+    lockedPreflight:
+      "Erscheint, sobald die Datei in Schritt 01 mit „Datei prüfen“ eingelesen wurde.",
+    lockedTransform:
+      "Verfügbar nach der Vorprüfung. Das Gitter kann bereits jetzt gewählt werden.",
+    lockedResult:
+      "Erscheint nach „Auswahl transformieren“ in Schritt 03.",
     method: "Transformationsgitter",
-    beta: "BeTA2007 · deutschlandweit",
+    beta: "BeTA2007 · deutschlandweit · in der App enthalten",
     custom: "Eigenes NTv2-Gitter (.gsb)",
     grid: "Gitterdatei auswählen",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · bis 256 MB",
@@ -118,7 +137,7 @@ const dict = {
     report: "Prüfprotokoll",
     download: "UTM-DXF herunterladen",
     ack: "Ich habe die Hinweise geprüft: Export als neue Modellbereich-Zeichnung, mit zerlegten Blöcken/Bemaßungen und segmentierten Kurven. Eignung des Gitters und Ergebnis werde ich anhand bekannter Punkte kontrollieren.",
-    summary: "Analyse & Export",
+    summary: "Ergebnis prüfen & herunterladen",
     changes: "Was sich beim Export ändert",
     technical: "Technische Prüfmeldungen",
     support: "Unterstützung & Grenzen",
@@ -179,14 +198,31 @@ const dict = {
     model: "Model space only",
     height: "Z stays unchanged",
     file: "Your DXF file",
-    step1: "Choose a drawing",
+    step1: "Choose & inspect a drawing",
     drop: "Drop your DXF here",
     browse: "or choose a file",
     fileHint: "ASCII & binary DXF · up to 25 MB",
     demo: "Try the sample drawing",
     step2: "Set the transformation",
+    stepPreflight: "Preflight & selection",
+    flow: "Workflow",
+    nextLabel: "Next step",
+    next1a: "Drop or choose a DXF file in step 01 – or try the sample drawing.",
+    next1b: "Click “Inspect file” in step 01.",
+    next23:
+      "Step 02: review the preselection (everything is selected by default). Then click “Transform selection” in step 03.",
+    next4:
+      "Step 04: check the result in the preview, acknowledge the notes and click “Download UTM DXF”.",
+    nextReady: "Everything acknowledged: click “Download UTM DXF”.",
+    nextBlocked:
+      "Export blocked: review the messages in step 04, fix the input and inspect again.",
+    lockedPreflight:
+      "Appears once the file has been read with “Inspect file” in step 01.",
+    lockedTransform:
+      "Available after the preflight. You can already choose the grid now.",
+    lockedResult: "Appears after “Transform selection” in step 03.",
     method: "Transformation grid",
-    beta: "BeTA2007 · Germany",
+    beta: "BeTA2007 · Germany · bundled with the app",
     custom: "Custom NTv2 grid (.gsb)",
     grid: "Choose grid file",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · up to 256 MB",
@@ -221,7 +257,7 @@ const dict = {
     report: "Inspection report",
     download: "Download UTM DXF",
     ack: "I have reviewed the notes: export creates a new model-space drawing with decomposed blocks/dimensions and segmented curves. I will check grid suitability and results against known control points.",
-    summary: "Analysis & export",
+    summary: "Check result & download",
     changes: "What changes during export",
     technical: "Technical inspection messages",
     support: "Support & limitations",
@@ -329,6 +365,14 @@ function Info({
       </div>
     </details>
   );
+}
+function scrollToStep(id: string) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+    block: "start",
+  });
 }
 function save(contents: string, name: string, type = "text/plain") {
   const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -469,6 +513,12 @@ function App() {
     localStorage.setItem("dxf-language", lang);
   }, [lang]);
   useEffect(() => () => worker.current?.terminate(), []);
+  useEffect(() => {
+    if (inventoryKey) scrollToStep("step-2");
+  }, [inventoryKey]);
+  useEffect(() => {
+    if (report) scrollToStep("preview");
+  }, [report]);
   const invalidate = () => {
     setReport(null);
     setAck(false);
@@ -610,6 +660,20 @@ function App() {
   const count = report
     ? Object.values(report.counts).reduce((a, b) => a + b, 0)
     : 0;
+  const active = report ? [4] : inventory ? [2, 3] : [1];
+  const next = busy
+    ? t[stage as "runtime" | "libraries" | "processing" | "inspecting"]
+    : !inventory
+      ? file
+        ? t.next1b
+        : t.next1a
+      : !report
+        ? t.next23
+        : blocked
+          ? t.nextBlocked
+          : !ack || (report.requiresConfirmation && !omissionAck)
+            ? t.next4
+            : t.nextReady;
   return (
     <>
       <header className="header">
@@ -698,9 +762,35 @@ function App() {
             </div>
           </div>
         </section>
+        <nav className="stepper" aria-label={t.flow}>
+          <ol>
+            {[t.step1, t.stepPreflight, t.step2, t.summary].map((label, i) => (
+              <li
+                key={i}
+                className={
+                  active.includes(i + 1)
+                    ? "active"
+                    : i + 1 < active[0]
+                      ? "done"
+                      : ""
+                }
+              >
+                <a href={`#step-${i + 1}`}>
+                  <span className="step">
+                    {i + 1 < active[0] ? <Check size={11} /> : `0${i + 1}`}
+                  </span>
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ol>
+          <p className="next-step" aria-live="polite">
+            <strong>{t.nextLabel}:</strong> {next}
+          </p>
+        </nav>
         <div className="workspace">
           <aside className="controls">
-            <section className="panel">
+            <section className="panel" id="step-1">
               <h2>
                 <span className="step">01</span>
                 {t.step1}
@@ -755,7 +845,42 @@ function App() {
                 <ArrowRight size={15} />
               </button>
             </section>
-            <section className="panel">
+            <div className="notice">
+              <TriangleAlert size={20} />
+              <div>
+                <strong>{t.notice}</strong>
+                <p>{method === "beta" ? t.betaNotice : t.customNotice}</p>
+                <a href={authority} target="_blank" rel="noreferrer">
+                  {t.authority}
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+          </aside>
+          <div className="results">
+            {inventory && selection ? (
+              <PreflightPanel
+                key={inventoryKey}
+                inventory={inventory}
+                selection={selection}
+                busy={busy}
+                lang={lang}
+                onReinspect={reinspect}
+                onChange={(v) => {
+                  setSelection(v);
+                  invalidate();
+                }}
+              />
+            ) : (
+              <section className="panel preflight" id="step-2">
+                <h2>
+                  <span className="step">02</span>
+                  {t.stepPreflight}
+                </h2>
+                <p className="muted">{t.lockedPreflight}</p>
+              </section>
+            )}
+            <section className="panel transform" id="step-3">
               <h2>
                 <span className="step">03</span>
                 {t.step2}
@@ -821,6 +946,7 @@ function App() {
                 <option value="0.01">1 cm</option>
                 <option value="0.05">5 cm</option>
               </select>
+              {!inventory && <p className="fine">{t.lockedTransform}</p>}
               <button
                 className="primary analyze"
                 disabled={busy || !inventory || !selected.length}
@@ -853,34 +979,7 @@ function App() {
               )}
               <p className="fine">{t.initialLoad}</p>
             </section>
-            <div className="notice">
-              <TriangleAlert size={20} />
-              <div>
-                <strong>{t.notice}</strong>
-                <p>{method === "beta" ? t.betaNotice : t.customNotice}</p>
-                <a href={authority} target="_blank" rel="noreferrer">
-                  {t.authority}
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            </div>
-          </aside>
-          <div className="results">
-            {inventory && selection && (
-              <PreflightPanel
-                key={inventoryKey}
-                inventory={inventory}
-                selection={selection}
-                busy={busy}
-                lang={lang}
-                onReinspect={reinspect}
-                onChange={(v) => {
-                  setSelection(v);
-                  invalidate();
-                }}
-              />
-            )}
-            <section className="preview-panel">
+            <section className="preview-panel" id="preview">
               <div className="preview-toolbar">
                 <div className="tabs">
                   <button
@@ -969,14 +1068,16 @@ function App() {
                 </div>
               </div>
             )}
-            <section className="panel analysis">
+            <section className="panel analysis" id="step-4">
               <h2>
                 <span className="step">04</span>
                 {t.summary}
                 <Info title={t.model}>{t.modelHelp}</Info>
               </h2>
               {!report ? (
-                <p className="muted">{t.warningIntro}</p>
+                <p className="muted">
+                  {t.lockedResult} {t.warningIntro}
+                </p>
               ) : (
                 <>
                   <div className={`status-title ${blocked ? "blocked" : ""}`}>

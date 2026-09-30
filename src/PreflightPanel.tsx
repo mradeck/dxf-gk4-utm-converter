@@ -78,7 +78,7 @@ export function PreflightPanel({
     h = b ? Math.max(b[3] - b[1], 1) : 1,
     pad = Math.max(w, h) * 0.08;
   return (
-    <section className="panel preflight">
+    <section className="panel preflight" id="step-2">
       <h2>
         <span className="step">02</span>
         {txt("Vorprüfung & Importauswahl", "Preflight & import selection")}
@@ -487,6 +487,12 @@ export function PreflightPanel({
           )}
         </p>
       )}
+      <a className="continue-link" href="#step-3">
+        {txt(
+          "Auswahl passt? Weiter zu Schritt 03: Transformieren ↓",
+          "Selection looks right? Continue to step 03: transform ↓",
+        )}
+      </a>
       <a
         className="cleaner-link"
         href="https://geodata-inspector-cleaner.netlify.app/"
