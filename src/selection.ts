@@ -65,7 +65,8 @@ export const groupKey = (layer: string, type: string) =>
 export const initialSelection = (inventory: Inventory): Selection => ({
   clusters: [...inventory.clusters.map((c) => c.id), "unlocated"],
   excludedGroups: [],
-  excludedIds: [],
+  // Exact duplicates (copy B) are removed by default; A stays in the export.
+  excludedIds: inventory.entries.filter((e) => e.duplicateOf).map((e) => e.id),
   excludePoints: false,
   symbolsAsPoints: false,
 });
