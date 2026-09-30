@@ -38,6 +38,15 @@ Unsupported or ambiguous geometry is **omitted per top-level source object**, in
 
 Fatal errors still prevent export: unreadable files, invalid grids, incompatible drawing units, no remaining geometry and a failing output structural audit. Source DXF recovery/audit repairs are reported and require partial-export consent because they may remove content before inventory.
 
+## Workflow
+
+The interface guides four numbered steps in reading order; a step bar with a “next step” hint shows the current state and links to each panel:
+
+1. **Choose & inspect a drawing** – drop a DXF (or use the sample) and click *Inspect file*.
+2. **Preflight & selection** – review the preselection (everything is selected by default).
+3. **Set the transformation** – BeTA2007 is bundled; optionally choose a custom NTv2 `.gsb`, then click *Transform selection*.
+4. **Check result & download** – inspect the map/drawing preview, acknowledge the notes and download the DXF and report.
+
 ## Preflight and cleanup
 
 1. Read the DXF locally and inspect model-space objects **before transformation**.
@@ -63,7 +72,7 @@ Runtime tests exercise the same engine in actual Pyodide/WebAssembly. Native tes
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.2.0`. npm: `26.9.2`.
+Display: `YY.MM.feature.fix` → `26.09.3.0`. npm: `26.9.3`.
 
 ## License
 
