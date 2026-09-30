@@ -69,7 +69,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.11.0";
+const VERSION = "26.09.12.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -114,6 +114,9 @@ const dict = {
     grid: "Gitterdatei auswählen",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · bis 256 MB",
     tolerance: "Kurven-Segmentierung",
+    format: "DXF-Format der Ausgabe",
+    formatHelp:
+      "R2018 ist der Standard. R2000 (AutoCAD 2000) für ältere CAD-, GIS- oder Vermessungsprogramme: True-Color-Farben werden dort auf die nächstliegende der 255 AutoCAD-Farben abgebildet, Transparenz entfällt, MESH-Netze sind nicht darstellbar und werden mit Hinweis ausgelassen.",
     analyze: "Auswahl transformieren",
     inspecting: "Objekte zählen und räumliche Gruppen prüfen …",
     cancel: "Abbrechen",
@@ -168,7 +171,7 @@ const dict = {
     limits:
       "Unterstützt: Punkte, Linien, 2D-/3D-Polylinien, Bögen, Kreise, Ellipsen, Splines, Texte, ebene Schraffuren, 3D-Flächen/Netze, gleichmäßig skalierte Blöcke sowie darstellbare Bemaßungen/Multileader. Nicht sicher übertragbare Objekte werden protokolliert und nach Bestätigung ausgelassen, etwa XREF, Proxy-/ACIS-Objekte, breite Polylinien, XCLIP und gespiegelte/ungleichmäßig skalierte Blöcke. Ein betroffener Block wird vollständig ausgelassen. Falsche Einheiten, ungültige Gitter, unlesbare Dateien oder fehlerhafte/leere Ausgaben bleiben gesperrt. Keine DWG-Dateien.",
     modelHelp:
-      "Es entsteht eine neue DXF R2018 mit Modellbereich, Layern, Linientypen und Textstilen. Papierlayouts, Viewports, Abhängigkeiten, benutzerdefinierte Metadaten und editierbare Block-/Bemaßungslogik werden nicht übernommen. Texte und Bemaßungszahlen werden nicht inhaltlich neu berechnet. CAD-Schriften müssen im Zielprogramm vorhanden sein.",
+      "Es entsteht eine neue DXF (R2018 oder wahlweise R2000) mit Modellbereich, Layern, Linientypen und Textstilen. Papierlayouts, Viewports, Abhängigkeiten, benutzerdefinierte Metadaten und editierbare Block-/Bemaßungslogik werden nicht übernommen. Texte und Bemaßungszahlen werden nicht inhaltlich neu berechnet. CAD-Schriften müssen im Zielprogramm vorhanden sein.",
     newGrid: "Eigenes Gitter erstellen?",
     newGridText:
       "Ein belastbares lokales Gitter benötigt identische Punkte mit bekannten GK- und UTM-Koordinaten sowie unabhängige Kontrollpunkte. Eine feinere Rasterung von BeTA2007 erzeugt keine höhere Genauigkeit. Diese Version importiert Gitter; sie leitet keine neuen Gitter ab.",
@@ -231,6 +234,9 @@ const dict = {
     grid: "Choose grid file",
     gridHint: "Bessel/DHDN → GRS80/ETRS89 · up to 256 MB",
     tolerance: "Curve segmentation",
+    format: "Output DXF format",
+    formatHelp:
+      "R2018 is the default. R2000 (AutoCAD 2000) for older CAD, GIS or surveying software: true colours are mapped to the nearest of the 255 AutoCAD colours, transparency is dropped, and MESH entities cannot be stored and are omitted with a note.",
     analyze: "Transform selection",
     inspecting: "Counting objects and checking spatial groups …",
     cancel: "Cancel",
@@ -285,7 +291,7 @@ const dict = {
     limits:
       "Supported: points, lines, 2D/3D polylines, arcs, circles, ellipses, splines, text, horizontal hatches, 3D faces/meshes, uniformly scaled blocks and renderable dimensions/multileaders. Objects that cannot be safely converted are reported and omitted after confirmation, including XREF, proxy/ACIS objects, wide polylines, XCLIP and mirrored/non-uniform blocks. An affected block is omitted entirely. Wrong units, invalid grids, unreadable files and invalid/empty outputs still block export. No DWG files.",
     modelHelp:
-      "Creates a new R2018 DXF containing model space, layers, line types and text styles. Paper layouts, viewports, dependencies, custom metadata and editable block/dimension logic are not retained. Text content and dimension labels are not recalculated. CAD fonts must be available in the target program.",
+      "Creates a new DXF (R2018 or optionally R2000) containing model space, layers, line types and text styles. Paper layouts, viewports, dependencies, custom metadata and editable block/dimension logic are not retained. Text content and dimension labels are not recalculated. CAD fonts must be available in the target program.",
     newGrid: "Create a custom grid?",
     newGridText:
       "A reliable local grid requires common points with known GK and UTM coordinates, plus independent check points. Resampling BeTA2007 more finely does not improve accuracy. This version imports grids; it does not derive new grids.",
@@ -348,6 +354,10 @@ const warnings: Record<string, [string, string]> = {
   qgisSymbols: [
     "QGIS-Symbolblöcke als Punkte am Einfügepunkt übernommen",
     "QGIS symbol blocks converted to points at their insertion point",
+  ],
+  r2000Colors: [
+    "True-Color-Farben für R2000 auf nächstliegende AutoCAD-Farbe abgebildet",
+    "True colours mapped to the nearest AutoCAD colour for R2000",
   ],
   nestedPoints: [
     "POINTs innerhalb von Blöcken bewusst ausgelassen",
@@ -489,6 +499,7 @@ function App() {
   const [grid, setGrid] = useState<File | null>(null);
   const [method, setMethod] = useState("beta");
   const [tol, setTol] = useState("0.005");
+  const [dxfVersion, setDxfVersion] = useState("R2018");
   const [report, setReport] = useState<Report | null>(null);
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -657,6 +668,7 @@ function App() {
             excludePoints: selection.excludePoints,
             symbolsAsPoints: selection.symbolsAsPoints,
             direction: inventory.crs.direction,
+            dxfVersion,
           },
         },
         gridData ? [gridData] : [],
@@ -950,6 +962,22 @@ function App() {
                 <option value="0.005">5 mm · Standard</option>
                 <option value="0.01">1 cm</option>
                 <option value="0.05">5 cm</option>
+              </select>
+              <label htmlFor="dxf-version">
+                {t.format}
+                <Info title={t.format}>{t.formatHelp}</Info>
+              </label>
+              <select
+                id="dxf-version"
+                disabled={busy}
+                value={dxfVersion}
+                onChange={(e) => {
+                  setDxfVersion(e.target.value);
+                  invalidate();
+                }}
+              >
+                <option value="R2018">DXF R2018 · Standard</option>
+                <option value="R2000">DXF R2000 · AutoCAD 2000</option>
               </select>
               {!inventory && <p className="fine">{t.lockedTransform}</p>}
               <button

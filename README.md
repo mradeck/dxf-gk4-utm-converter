@@ -16,7 +16,7 @@ Static Netlify deployment uses `dist/`. No server-side CAD processing, API keys 
 
 ## Geodesy
 
-Explicit PROJ pipelines: GK4 → UTM is inverse GK4/Bessel projection → NTv2 horizontal shift → UTM32/GRS80; UTM → GK4 runs the same steps in reverse, applying the NTv2 grid inversely (PROJ iterates the inverse shift). A GK4 → UTM → GK4 round trip reproduces the input below 1 µm. Never use an optional grid, null grid, automatic operation selection or silent Helmert fallback. Objects outside grid coverage are omitted and listed in the report. Source inputs must be full metres: GK4 with zone prefix 4 (easting 4.0–5.0 million) or UTM32 without zone prefix (easting 0.1–1.0 million), northing 5.0–6.2 million. As in Geodata Inspector, DXF carries no CRS metadata, so the direction follows the coordinate range of the majority of objects; it can be overridden in the preflight, and objects in the other system are flagged. Header units other than metre/unspecified block export; unspecified units are reported. Output is metre-based DXF R2018; UTM output has no leading zone number, GK4 output keeps prefix 4.
+Explicit PROJ pipelines: GK4 → UTM is inverse GK4/Bessel projection → NTv2 horizontal shift → UTM32/GRS80; UTM → GK4 runs the same steps in reverse, applying the NTv2 grid inversely (PROJ iterates the inverse shift). A GK4 → UTM → GK4 round trip reproduces the input below 1 µm. Never use an optional grid, null grid, automatic operation selection or silent Helmert fallback. Objects outside grid coverage are omitted and listed in the report. Source inputs must be full metres: GK4 with zone prefix 4 (easting 4.0–5.0 million) or UTM32 without zone prefix (easting 0.1–1.0 million), northing 5.0–6.2 million. As in Geodata Inspector, DXF carries no CRS metadata, so the direction follows the coordinate range of the majority of objects; it can be overridden in the preflight, and objects in the other system are flagged. Header units other than metre/unspecified block export; unspecified units are reported. Output is metre-based DXF R2018 or, on request, R2000 (AutoCAD 2000) for older software; for R2000, true colours are mapped to the nearest AutoCAD colour index, transparency is dropped and MESH entities are omitted with a note because R2000 cannot store them. UTM output has no leading zone number, GK4 output keeps prefix 4.
 
 BeTA2007 is a **decimetre-level geotopographic transformation**, not an assured cadastral transformation. BY-KanU was withdrawn at the end of 2024; LDBV's public explanation is only “aus fachlichen Gründen”. BY-SAPOS has different geodetic foundations and cannot automatically replace a cadastral grid. A new empirical grid needs suitable common points and independent validation; this app does not manufacture accuracy by resampling.
 
@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.11.0`. npm: `26.9.11`.
+Display: `YY.MM.feature.fix` → `26.09.12.0`. npm: `26.9.12`.
 
 ## License
 
