@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.09.13.0 — 2026-09-30
+
+- Map and drawing preview show the effective DXF colours (object true colour, ACI or layer colour) instead of fixed magenta/purple; light colours are outlined on the map.
+
 ## 26.09.12.0 — 2026-09-30
 
 - Output format selectable in step 03: DXF R2018 (default) or R2000 (AutoCAD 2000). For R2000 true colours are mapped to the nearest AutoCAD colour index and reported; MESH entities are omitted with a note instead of being dropped silently.

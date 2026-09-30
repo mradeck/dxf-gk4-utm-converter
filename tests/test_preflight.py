@@ -222,3 +222,15 @@ def test_r2000_output_reports_losses_instead_of_dropping_silently():
     assert r["warnings"]["r2000Colors"]==1 and r["requiresConfirmation"]
     r18,out18=process_document(doc,GRID)
     assert ezdxf.read(io.StringIO(out18)).dxfversion=="AC1032" and not r18["omitted"]
+
+def test_preview_carries_effective_dxf_colours():
+    doc,m=drawing()
+    doc.layers.add("green", color=3)
+    doc.layers.add("rgb", true_color=0x3366cc)
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"layer":"green"})
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"layer":"rgb"})
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"color":1})
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"true_color":0xff8800})
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"color":7})
+    r,_=process_document(doc,GRID)
+    assert [x["color"] for x in r["previewMeta"]]==["#00ff00","#3366cc","#ff0000","#ff8800",None]
