@@ -17,12 +17,12 @@ from ezdxf.addons import Importer
 from ezdxf.explode import attrib_to_text
 from ezdxf.layouts import VirtualLayout
 from ezdxf.entities import Point
-from ezdxf.colors import DXF_DEFAULT_COLORS, int2rgb
+from ezdxf.colors import DXF_DEFAULT_COLORS, int2rgb, aci2rgb
 from pyproj import Transformer, network
 from preflight import read_document, inspect_document, issue, QGIS_SYMBOL, EASTING, NORTHING, LABELS
 
 network.set_network_enabled(False)
-VERSION = "26.09.12.0"
+VERSION = "26.09.13.0"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
@@ -106,6 +106,7 @@ class Conversion:
         self.omitted = []
         self.preview_meta = []
         self.current_meta = {}
+        self.current_color = None
         self.successful_sources = 0
         self.failed_sources = 0
         self.selected_omissions = 0
@@ -186,6 +187,21 @@ class Conversion:
         e.extension_dict = None
         return e
 
+    def preview_color(self, e):
+        """Effective display colour as #rrggbb; None = CAD foreground (ACI 7 / white)."""
+        rgb, aci = None, e.dxf.get("color", 256)
+        if e.dxf.hasattr("true_color"):
+            rgb = int2rgb(e.dxf.true_color)
+        elif aci == 256 and e.dxf.layer in self.source.layers:
+            layer = self.source.layers.get(e.dxf.layer)
+            rgb = int2rgb(layer.dxf.true_color) if layer.dxf.hasattr("true_color") else None
+            aci = abs(layer.dxf.get("color", 7))
+        if rgb is None and 1 <= aci <= 255 and aci != 7:
+            rgb = aci2rgb(aci)
+        if rgb is None or tuple(rgb) == (255, 255, 255):
+            return None
+        return "#%02x%02x%02x" % tuple(rgb)
+
     def display(self, points):
         # Bounded preview: never affects exported coordinates.
         if len(self.preview) < 1500:
@@ -194,7 +210,7 @@ class Conversion:
             if points and sampled[-1] != points[-1]:
                 sampled.append(points[-1])
             self.preview.append([[p.x, p.y] for p in sampled])
-            self.preview_meta.append(self.current_meta.copy())
+            self.preview_meta.append({**self.current_meta, "color": self.current_color})
 
     def poly(self, points, attrs, close=False):
         pts = self.line_points(points)
@@ -236,6 +252,7 @@ class Conversion:
             e.dxf.color = nearest_aci(e.dxf.true_color)
             self.warnings["r2000Colors"] += 1
         attrs = self.style(e)
+        self.current_color = self.preview_color(e)
         self.converted[typ] += 1
         if typ == "INSERT":
             name = e.dxf.name

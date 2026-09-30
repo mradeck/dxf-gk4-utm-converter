@@ -55,7 +55,7 @@ The interface guides four numbered steps in reading order; a step bar with a “
 
 Spatial policy is based on [Geodata Inspector & Cleaner](https://github.com/mradeck/geodata-inspector-cleaner/tree/e4a2721de903b5aedca6be469d8d51ff4a51621e): transitive object-centre clustering (default 1,000 m), a 60% main-area threshold, extent-inflation hints and no automatic deletion. The single cluster plausible in the source system is preferred as a main-area candidate; otherwise the largest cluster is used. Equally weighted groups remain ambiguous. Blocks/text use approximate anchors; this is a review aid, not proof of validity. Z=0 is only flagged alongside materially elevated geometry. INSERTs of QGIS symbol blocks (`symbolLayer<n>`, written by a QGIS DXF export with symbology) are flagged with their marker size; their size follows the symbology scale, not the drawing. They can be converted to POINTs at their insertion point (Z, layer and colour kept; circle/fill dropped; the POINT filter applies) or excluded in one click; re-exporting from QGIS with “No symbology” keeps points as POINT objects. Exact duplicates follow the Geodata Inspector policy (`src/duplicates/dxfDuplicates.ts`): numerically exact comparison of the entity’s DXF tags including Z, properties and all vertices, ignoring only handles (owner references canonicalized); groups are split into same-layer and cross-layer matches, A is the first object found and B a further copy. Every copy B is left out of the export by default (A stays; the loaded file is never changed); one button keeps the duplicates after all, and the individual object list shows each finding. Spatial hashing avoids quadratic work for dense point sets; exhausting the cross-cell comparison budget conservatively merges neighbours and disables outlier recommendations.
 
-The schematic preflight view shows up to 1,000 bounds/anchors for the focused group. The transformed DXF map shows up to 1,500 sampled geometries with handles/layers on hover; lines are magenta, points purple. Preview simplification **does not remove export objects**. OSM tiles load by default together with the transformed preview and disclose the visible map area/IP to the provider; the DXF itself stays local, and the background can be switched off. Text glyphs, hatch fills and exact CAD symbology are not rendered.
+The schematic preflight view shows up to 1,000 bounds/anchors for the focused group. The transformed DXF map shows up to 1,500 sampled geometries with handles/layers on hover, drawn in their effective DXF colour (object true colour, else ACI, else layer colour; ACI 7/white as foreground). Light colours get a dark outline on the map. Preview simplification **does not remove export objects**. OSM tiles load by default together with the transformed preview and disclose the visible map area/IP to the provider; the DXF itself stays local, and the background can be switched off. Text glyphs, hatch fills and exact CAD symbology are not rendered.
 
 Limits: 25 MB DXF, 256 MB NTv2, 200,000 expanded entities, 1,000,000 coordinate evaluations. Full multi-GB BY-KanU files need a smaller regional extract and professional validation. Custom NTv2 headers/ellipsoids/direction are checked, but this does not certify their datum realization, licensing or quality.
 
@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.12.0`. npm: `26.9.12`.
+Display: `YY.MM.feature.fix` → `26.09.13.0`. npm: `26.9.13`.
 
 ## License
 

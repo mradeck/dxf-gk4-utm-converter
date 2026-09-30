@@ -52,7 +52,7 @@ type Report = {
   evaluations: number;
   preview: number[][][];
   geographicPreview: number[][][];
-  previewMeta: Issue[];
+  previewMeta: (Issue & { color: string | null })[];
   previewLimited: boolean;
   sourceBounds: number[] | null;
   targetBounds: number[] | null;
@@ -69,7 +69,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.12.0";
+const VERSION = "26.09.13.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -399,6 +399,13 @@ function save(contents: string, name: string, type = "text/plain") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+// DXF colour as drawn in CAD; null = foreground colour (ACI 7 / white).
+const isLight = (hex: string) =>
+  [1, 3, 5].reduce(
+    (s, i, k) =>
+      s + parseInt(hex.slice(i, i + 2), 16) * [0.299, 0.587, 0.114][k],
+    0,
+  ) > 190;
 function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -419,20 +426,31 @@ function MapView({ report, basemap }: { report: Report; basemap: boolean }) {
     report.geographicPreview.forEach((points, i) => {
       const latlngs = points.map((p) => [p[1], p[0]] as L.LatLngTuple);
       if (!latlngs.length) return;
+      const meta = report.previewMeta[i];
+      const color = meta?.color ?? "#222222";
+      const light = isLight(color);
+      // Light CAD colours get a dark outline so they stay visible on OSM.
+      if (light && latlngs.length > 1)
+        L.polyline(latlngs, {
+          color: "#333333",
+          weight: 4.5,
+          opacity: 0.55,
+          interactive: false,
+        }).addTo(map);
       const layer =
         latlngs.length === 1
           ? L.circleMarker(latlngs[0], {
               radius: 3,
-              color: "#752db3",
+              color: light ? "#333333" : color,
+              fillColor: color,
               weight: 1,
-              fillOpacity: 0.8,
+              fillOpacity: 0.9,
             })
           : L.polyline(latlngs, {
-              color: "#c12862",
+              color,
               weight: 2.5,
-              opacity: 0.9,
+              opacity: 0.95,
             });
-      const meta = report.previewMeta[i];
       if (meta) {
         const label = document.createElement("span");
         label.textContent = `${meta.type} · ${meta.layer} · #${meta.handle}`;
@@ -470,14 +488,14 @@ function Drawing({ report }: { report: Report }) {
               cx={pts[0][0] - b[0]}
               cy={pts[0][1] - b[1]}
               r={Math.max(width, height) * 0.005}
-              fill="var(--accent)"
+              fill={report.previewMeta[i]?.color ?? "var(--ink)"}
             />
           ) : (
             <polyline
               key={i}
               points={pts.map((p) => `${p[0] - b[0]},${p[1] - b[1]}`).join(" ")}
               fill="none"
-              stroke={["var(--accent)", "#b8b57a", "#729caa"][i % 3]}
+              stroke={report.previewMeta[i]?.color ?? "var(--ink)"}
               strokeWidth="1.8"
               vectorEffect="non-scaling-stroke"
             />
@@ -1075,8 +1093,8 @@ function App() {
                   <Info title="OpenStreetMap">{t.mapPrivacy}</Info>
                   <small>
                     {lang === "de"
-                      ? "Punkte: violett · Linien: magenta · Details per Mauszeiger"
-                      : "Points: purple · Lines: magenta · Hover for details"}
+                      ? "Farben wie in der DXF (Objekt- bzw. Layerfarbe; helle Farben dunkel umrandet) · Details per Mauszeiger"
+                      : "Colours as in the DXF (object or layer colour; light colours outlined) · Hover for details"}
                   </small>
                 </div>
               )}
