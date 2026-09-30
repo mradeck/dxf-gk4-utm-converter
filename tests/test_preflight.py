@@ -9,7 +9,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "public"))
 from preflight import inspect_document, cluster_entries
-from engine import process_document, Conversion
+from engine import process_document, Conversion, nearest_aci
 from ezdxf.math import Vec3
 
 GRID = str(ROOT / "public/grids/BETA2007.gsb")
@@ -206,3 +206,19 @@ def test_forced_direction_marks_other_system_implausible():
     assert r["crs"]["mode"]=="manual" and r["crs"]["mixed"]
     assert [e["plausible"] for e in r["entries"]]==[False,True]
     assert "UTM32" in r["entries"][0]["reason"]
+
+def test_r2000_output_reports_losses_instead_of_dropping_silently():
+    doc,m=drawing()
+    m.add_line((X,Y),(X+1,Y),dxfattribs={"true_color":0x123456})
+    mesh=m.add_mesh()
+    with mesh.edit_data() as data:
+        data.vertices=[(X,Y,0),(X+1,Y,0),(X,Y+1,0)]; data.faces=[(0,1,2)]
+    r,out=process_document(doc,GRID,options={"dxfVersion":"R2000"})
+    result=ezdxf.read(io.StringIO(out))
+    assert result.dxfversion=="AC1015" and r["outputVersion"]=="R2000"
+    assert [e.dxftype() for e in result.modelspace()]==["LINE"]
+    assert result.modelspace()[0].dxf.color==nearest_aci(0x123456)!=256
+    assert r["omitted"][0]["type"]=="MESH" and "R2007" in r["omitted"][0]["message"]
+    assert r["warnings"]["r2000Colors"]==1 and r["requiresConfirmation"]
+    r18,out18=process_document(doc,GRID)
+    assert ezdxf.read(io.StringIO(out18)).dxfversion=="AC1032" and not r18["omitted"]

@@ -17,11 +17,12 @@ from ezdxf.addons import Importer
 from ezdxf.explode import attrib_to_text
 from ezdxf.layouts import VirtualLayout
 from ezdxf.entities import Point
+from ezdxf.colors import DXF_DEFAULT_COLORS, int2rgb
 from pyproj import Transformer, network
 from preflight import read_document, inspect_document, issue, QGIS_SYMBOL, EASTING, NORTHING, LABELS
 
 network.set_network_enabled(False)
-VERSION = "26.09.11.0"
+VERSION = "26.09.12.0"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
@@ -29,6 +30,11 @@ SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPS
 GK4 = "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel"
 UTM32 = "+proj=utm +zone=32 +ellps=GRS80"
 CRS = {"gk4-utm": ("EPSG:31468", "EPSG:25832"), "utm-gk4": ("EPSG:25832", "EPSG:31468")}
+
+
+def nearest_aci(true_color):
+    rgb = int2rgb(true_color)
+    return min(range(1, 256), key=lambda i: sum((a - b) ** 2 for a, b in zip(rgb, int2rgb(DXF_DEFAULT_COLORS[i]))))
 
 
 def make_transform(grid, direction="gk4-utm"):
@@ -87,7 +93,10 @@ class Conversion:
         self.system = self.direction.split("-")[0]
         self.tr = make_transform(grid, self.direction)
         self.geo = make_geographic(grid, self.direction)
-        self.output = ezdxf.new("R2018")
+        self.version = self.options.get("dxfVersion") or "R2018"
+        if self.version not in ("R2018", "R2000"):
+            raise ValueError("Unsupported output DXF version.")
+        self.output = ezdxf.new(self.version)
         importer = Importer(source, self.output)
         importer.import_tables(["layers", "linetypes", "styles"])
         importer.finalize()
@@ -222,6 +231,10 @@ class Conversion:
                     e.dxf.true_color = inherited.dxf.true_color
             if e.dxf.get("linetype", "BYLAYER").upper() == "BYBLOCK":
                 e.dxf.linetype = inherited.dxf.get("linetype", "BYLAYER")
+        if self.version == "R2000" and e.dxf.hasattr("true_color"):
+            # R2000 has no true colour: keep the nearest of the 255 AutoCAD colours.
+            e.dxf.color = nearest_aci(e.dxf.true_color)
+            self.warnings["r2000Colors"] += 1
         attrs = self.style(e)
         self.converted[typ] += 1
         if typ == "INSERT":
@@ -317,6 +330,8 @@ class Conversion:
             self.display(pts + pts[:1])
             self.warnings["faces"] += 1
         elif typ == "MESH":
+            if self.version == "R2000":
+                raise ValueError("MESH requires DXF R2007 or newer; export as R2018.")
             e.vertices = [self.point(p) for p in e.vertices]
             self.msp.add_entity(self.clean(e))
             self.warnings["faces"] += 1
@@ -401,7 +416,7 @@ class Conversion:
             self.output.set_modelspace_vport(height=max(20, b[3]-b[1])*1.2, center=((b[0]+b[2])/2, (b[1]+b[3])/2))
         valid_bounds = all(math.isfinite(v) for v in b)
         requires_confirmation = bool(self.omitted or self.audit["errors"] or self.audit["repairs"] or self.audit["recovered"] or self.warnings.get("nestedPoints"))
-        report = {"version": VERSION, "direction": self.direction, "sourceCRS": CRS[self.direction][0], "targetCRS": CRS[self.direction][1], "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if valid_bounds else None, "targetBounds": self.output_bounds if valid_bounds else None, "preview": self.preview, "supported": sorted(SUPPORTED),
+        report = {"version": VERSION, "direction": self.direction, "sourceCRS": CRS[self.direction][0], "targetCRS": CRS[self.direction][1], "axisOrder": "X=easting, Y=northing", "height": "Z unchanged; no vertical datum conversion", "toleranceMetres": self.tol, "counts": dict(Counter(e.dxftype() for e in self.source.modelspace())), "layers": [layer.dxf.name for layer in self.source.layers], "dxfVersion": self.source.dxfversion, "outputVersion": self.version, "units": self.source.units, "blockers": self.blockers, "warnings": dict(self.warnings), "evaluations": self.count, "outputEntities": len(self.msp), "samples": self.samples, "sourceBounds": self.input_bounds if valid_bounds else None, "targetBounds": self.output_bounds if valid_bounds else None, "preview": self.preview, "supported": sorted(SUPPORTED),
                   "omitted": self.omitted, "audit": self.audit, "requiresConfirmation": requires_confirmation, "successfulSources": self.successful_sources, "failedSources": self.failed_sources, "selectedOmissions": self.selected_omissions, "previewMeta": self.preview_meta, "previewLimited": len(self.preview) >= 1500, "geographicPreview": []}
         if valid_bounds:
             corners = [self.geo.transform(x,y) for x in [b[0],b[2]] for y in [b[1],b[3]]]
