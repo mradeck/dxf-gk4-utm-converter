@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.09.15.0 — 2026-10-01
+
+- Step 04: removed duplicates appear as a fourth, highlighted tile “Object duplicates removed”; the partial-export notice no longer counts them and only appears when objects are really missing.
+- Preflight object list: duplicate findings read “Object duplicate of #… – removed/kept” (German UI in German) instead of the technical English reason.
+
 ## 26.09.14.0 — 2026-09-30
 
 - Transparency slider for the OSM background next to “Show OSM background” (default 50 %); changes apply without rebuilding the map.

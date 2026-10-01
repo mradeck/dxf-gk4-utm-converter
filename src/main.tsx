@@ -69,7 +69,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.14.0";
+const VERSION = "26.09.15.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -143,6 +143,7 @@ const dict = {
     entities: "Quellobjekte",
     layers: "Layer",
     exportObjects: "Exportobjekte",
+    duplicatesRemoved: "Objekt-Duplikate entfernt",
     report: "Prüfprotokoll",
     download: "DXF herunterladen",
     noCrs:
@@ -264,6 +265,7 @@ const dict = {
     entities: "Source entities",
     layers: "Layers",
     exportObjects: "Output entities",
+    duplicatesRemoved: "Object duplicates removed",
     report: "Inspection report",
     download: "Download DXF",
     noCrs:
@@ -718,6 +720,21 @@ function App() {
     }
   }
   const blocked = !!report?.blockers.length;
+  // Removed duplicate copies are reported in their own tile, not as missing objects.
+  const duplicateIds = new Set(
+    inventory?.entries.filter((e) => e.duplicateOf).map((e) => e.id),
+  );
+  const isDuplicate = (o: { id: string; category: string }) =>
+    o.category === "selection" && duplicateIds.has(o.id);
+  const removedDuplicates = report?.omitted.filter(isDuplicate).length ?? 0;
+  const missing = report?.omitted.filter((o) => !isDuplicate(o)) ?? [];
+  const partial =
+    !!report &&
+    (missing.length > 0 ||
+      report.audit.errors > 0 ||
+      report.audit.repairs > 0 ||
+      report.audit.recovered ||
+      !!report.warnings.nestedPoints);
   const count = report
     ? Object.values(report.counts).reduce((a, b) => a + b, 0)
     : 0;
@@ -1199,6 +1216,14 @@ function App() {
                       </strong>
                       <span>{t.exportObjects}</span>
                     </div>
+                    {removedDuplicates > 0 && (
+                      <div className="stat-duplicates">
+                        <strong>
+                          {removedDuplicates.toLocaleString(lang)}
+                        </strong>
+                        <span>{t.duplicatesRemoved}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="entity-tags">
                     {Object.entries(report.counts).map(([name, n]) => (
@@ -1220,7 +1245,7 @@ function App() {
                       ))}
                     </div>
                   )}
-                  {report.requiresConfirmation && (
+                  {partial && (
                     <div className="omission-box">
                       <h3>
                         <TriangleAlert size={18} />
@@ -1230,8 +1255,8 @@ function App() {
                       </h3>
                       <p>
                         {lang === "de"
-                          ? `${report.selectedOmissions} Quellobjekte abgewählt · ${report.failedSources} nicht sicher transformierbar · ${report.successfulSources} Quellobjekte verarbeitet.`
-                          : `${report.selectedOmissions} source objects excluded · ${report.failedSources} could not be safely transformed · ${report.successfulSources} source objects processed.`}
+                          ? `${report.selectedOmissions - removedDuplicates} Quellobjekte abgewählt · ${report.failedSources} nicht sicher transformierbar · ${report.successfulSources} Quellobjekte verarbeitet.`
+                          : `${report.selectedOmissions - removedDuplicates} source objects excluded · ${report.failedSources} could not be safely transformed · ${report.successfulSources} source objects processed.`}
                       </p>
                       {(report.audit.errors > 0 ||
                         report.audit.repairs > 0 ||
@@ -1248,7 +1273,7 @@ function App() {
                           {lang === "de"
                             ? "Ausgelassene Objekte & Audit anzeigen"
                             : "Show omitted objects & audit"}{" "}
-                          ({report.omitted.length})
+                          ({missing.length})
                         </summary>
                         <p>
                           {lang === "de"
@@ -1256,7 +1281,7 @@ function App() {
                             : "Up to 50 entries here; full object list in the inspection report."}
                         </p>
                         <div className="omission-list">
-                          {report.omitted.slice(0, 50).map((o, i) => (
+                          {missing.slice(0, 50).map((o, i) => (
                             <p key={i}>
                               <strong>
                                 {o.type} · #{o.handle} · {o.layer}
