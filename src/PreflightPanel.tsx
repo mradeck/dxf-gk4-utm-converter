@@ -4,6 +4,7 @@ import {
   groupKey,
   initialSelection,
   selectedEntries,
+  type Entry,
   type Inventory,
   type Selection,
 } from "./selection";
@@ -50,6 +51,26 @@ export function PreflightPanel({
   const duplicateIds = inventory.entries
     .filter((e) => e.duplicateOf)
     .map((e) => e.id);
+  const byId = useMemo(
+    () => new Map(inventory.entries.map((e) => [e.id, e])),
+    [inventory],
+  );
+  const duplicateFinding = (e: Entry, kept: boolean) => {
+    const a = byId.get(e.duplicateOf!)!;
+    const where =
+      e.duplicateKind === "cross-layer"
+        ? txt(` auf Layer ${a.layer}`, ` on layer ${a.layer}`)
+        : "";
+    return kept
+      ? txt(
+          `Objekt-Duplikat von #${a.handle}${where} – wird übernommen`,
+          `Object duplicate of #${a.handle}${where} – kept`,
+        )
+      : txt(
+          `Objekt-Duplikat von #${a.handle}${where} – wird entfernt`,
+          `Object duplicate of #${a.handle}${where} – removed`,
+        );
+  };
   const duplicatesRemoved = duplicateIds.every((id) =>
     selection.excludedIds.includes(id),
   );
@@ -596,16 +617,18 @@ export function PreflightPanel({
                       #{e.handle} · {e.layer}
                     </td>
                     <td>
-                      {e.reason ||
-                        (suspectClusters.has(e.cluster ?? "")
-                          ? txt(
-                              "Entfernter Bereich / manuell prüfen",
-                              "Remote area / manual review",
-                            )
-                          : txt(
-                              "Keine räumliche Auffälligkeit erkannt",
-                              "No spatial anomaly detected",
-                            ))}
+                      {e.duplicateOf
+                        ? duplicateFinding(e, selectedSet.has(e.id))
+                        : e.reason ||
+                          (suspectClusters.has(e.cluster ?? "")
+                            ? txt(
+                                "Entfernter Bereich / manuell prüfen",
+                                "Remote area / manual review",
+                              )
+                            : txt(
+                                "Keine räumliche Auffälligkeit erkannt",
+                                "No spatial anomaly detected",
+                              ))}
                       {filtered &&
                         ` · ${txt("bereits gefiltert", "already filtered")}`}
                     </td>
