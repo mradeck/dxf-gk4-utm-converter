@@ -81,7 +81,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.18.2";
+const VERSION = "26.18.3";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {

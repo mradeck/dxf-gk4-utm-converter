@@ -1,6 +1,6 @@
 {
   "name": "dxf-coordinate-forge",
-  "version": "26.18.2",
+  "version": "26.18.3",
   "private": true,
   "type": "module",
   "scripts": {

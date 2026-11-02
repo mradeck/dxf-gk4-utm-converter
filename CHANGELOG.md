@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.18.3 — 2026-11-02
+
+- Favicon: variant with a thicker stroke (more legible at 16 px).
+
 ## 26.18.2 — 2026-11-02
 
 - Favicon now matches the header mark exactly: white tile with a light blue frame (radius 9/34 of the edge length) and the blue forge symbol of the light interface, instead of the former dark tile. Added `favicon-32.png` and `apple-touch-icon.png` (rendered from the SVG) and linked all three in `index.html`.
