@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.18.2 — 2026-11-02
+
+- Favicon now matches the header mark exactly: white tile with a light blue frame (radius 9/34 of the edge length) and the blue forge symbol of the light interface, instead of the former dark tile. Added `favicon-32.png` and `apple-touch-icon.png` (rendered from the SVG) and linked all three in `index.html`.
+
 ## 26.18.1 — 2026-11-02
 
 - Look aligned with Geodata Inspector & Cleaner: header with framed mark, upper-case title with version and a short tagline, privacy chip; header actions in fixed order “About” (menu: About me, Copyright), help “(i)”, interface button, language button — all as quiet bordered buttons. The GitHub icon is gone from the header (source code stays linked in the footer).

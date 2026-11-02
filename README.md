@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `Jahr.Push.Iteration` → `26.18.1` (two-digit year · running number of the GitHub push to `main` in that year · local iteration). npm: `26.18.1`.
+Display: `Jahr.Push.Iteration` → `26.18.2` (two-digit year · running number of the GitHub push to `main` in that year · local iteration). npm: `26.18.2`.
 
 Until 26.11.16.0 the scheme was `YY.MM.feature.fix`.
 
