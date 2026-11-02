@@ -6,7 +6,6 @@ import {
   Check,
   FileCode2,
   FileSearch,
-  CodeXml as Github,
   Layers,
   Map as MapIcon,
   ShieldCheck,
@@ -18,12 +17,16 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import L from "leaflet";
+import "@fontsource-variable/inter";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import { PreflightPanel } from "./PreflightPanel";
 import {
   AppFooter,
   CHROME_TEXT,
+  ChromeDialogs,
+  HeaderInfoActions,
+  type ChromeDialog,
   FlagDE,
   FlagGB,
   ThemeIcon,
@@ -78,12 +81,14 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.17.1";
+const VERSION = "26.18.1";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
   de: {
-    subtitle: "Das Koordinaten-Werkzeug für deine CAD-Pläne",
+    subtitle: "Koordinaten für CAD-Pläne",
+    chip: "DXF bleibt lokal · OSM-Karte online",
+    goodToKnow: "Gut zu wissen",
     eyebrow: "GK4 ⇄ UTM32 · LOKAL IM BROWSER",
     title: "Neue Koordinaten.",
     title2: "Dein Plan bleibt deiner.",
@@ -207,7 +212,9 @@ const dict = {
     noPreview: "Für diese Objekte ist keine Linienvorschau verfügbar.",
   },
   en: {
-    subtitle: "The coordinate tool for your CAD drawings",
+    subtitle: "Coordinates for CAD drawings",
+    chip: "DXF stays local · OSM map online",
+    goodToKnow: "Good to know",
     eyebrow: "GK4 ⇄ UTM32 · IN YOUR BROWSER",
     title: "New coordinates.",
     title2: "Your drawing stays yours.",
@@ -537,6 +544,7 @@ function Drawing({ report }: { report: Report }) {
 function App() {
   const [lang, setLang] = useState<"de" | "en">(initialLang);
   const [themeMode, setThemeMode] = useState<ThemeMode>(initialTheme);
+  const [chromeDialog, setChromeDialog] = useState<ChromeDialog>("");
   const t = dict[lang];
   const c = CHROME_TEXT[lang];
   const [file, setFile] = useState<File | null>(null);
@@ -759,18 +767,32 @@ function App() {
       : [SYSTEMS.gk4, SYSTEMS.utm];
   return (
     <>
-      <header className="header">
+      <header className="topbar">
         <a className="brand" href="/" aria-label="DXF Coordinate Forge">
-          <img src="/favicon.svg" alt="" />
-          <span>
-            DXF <b>Coordinate Forge</b>
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="8 12 48 42" width="22" height="22">
+              <g fill="none" stroke="currentColor" strokeWidth="3.4">
+                <path d="M15 45V19h25M24 49h25V24M20 39l22-15M33 23h10v10" />
+                <circle cx="20" cy="39" r="4" />
+              </g>
+            </svg>
+          </span>
+          <span className="brand-copy">
+            <span className="brand-title-line">
+              <strong>DXF Coordinate Forge</strong>
+              <span className="brand-version">v{VERSION}</span>
+            </span>
             <small>{t.subtitle}</small>
           </span>
         </a>
-        <nav>
-          <span className="version">v{VERSION}</span>
+        <div className="privacy-chip">
+          <span />
+          <span>{t.chip}</span>
+        </div>
+        <nav className="top-actions" aria-label={lang === "de" ? "App-Menü" : "App menu"}>
+          <HeaderInfoActions lang={lang} onOpen={setChromeDialog} />
           <button
-            className="icon-button"
+            className="button button-quiet theme-button"
             type="button"
             onClick={() => setThemeMode(nextTheme(themeMode))}
             aria-label={
@@ -791,7 +813,7 @@ function App() {
             <ThemeIcon mode={themeMode} />
           </button>
           <button
-            className="language"
+            className="button button-quiet language-button"
             type="button"
             onClick={() => {
               const next = lang === "de" ? "en" : "de";
@@ -804,22 +826,12 @@ function App() {
             {lang === "de" ? <FlagDE /> : <FlagGB />}
             <span>{lang.toUpperCase()}</span>
           </button>
-          <a
-            className="icon-button"
-            href="https://github.com/mradeck/dxf-gk4-utm-converter"
-            aria-label="GitHub"
-          >
-            <Github size={19} />
-          </a>
         </nav>
       </header>
       <main>
         <section className="hero">
           <div>
-            <p className="eyebrow">
-              <span />
-              {t.eyebrow}
-            </p>
+            <p className="eyebrow">{t.eyebrow}</p>
             <h1>
               {t.title}
               <br />
@@ -1427,7 +1439,7 @@ function App() {
         </div>
         <section className="knowledge">
           <div>
-            <p className="eyebrow">GOOD TO KNOW</p>
+            <p className="eyebrow">{t.goodToKnow}</p>
             <h2>{t.support}</h2>
             <p>{t.limits}</p>
             <p>
@@ -1449,7 +1461,18 @@ function App() {
           </div>
         </section>
       </main>
-      <AppFooter lang={lang} version={VERSION} note={t.privacy} />
+      <AppFooter
+        lang={lang}
+        version={VERSION}
+        note={t.privacy}
+        onOpen={setChromeDialog}
+      />
+      <ChromeDialogs
+        lang={lang}
+        version={VERSION}
+        dialog={chromeDialog}
+        onClose={() => setChromeDialog("")}
+      />
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 [Open app](https://dxf-coordinate-forge.netlify.app/) · [Public source](https://github.com/mradeck/dxf-gk4-utm-converter)
 
-Local-first browser SPA: DXF model space between **DHDN / GK4 (EPSG:31468)** and **ETRS89 / UTM32N (EPSG:25832)**, in both directions; the direction is detected from the coordinates. Fixed X=easting, Y=northing in metres; Z unchanged. German/English UI (flag button, browser language on first visit), automatic/light/dark interface in the neutral grey/blue scheme shared by Michael Radeck's public apps, two footer bars (more apps; author, version, sources, help/contact and license dialogs, imprint, Ko-fi), automatic preflight on loading, selection, reported partial exports and actual DXF geometry over an OpenStreetMap background.
+Local-first browser SPA: DXF model space between **DHDN / GK4 (EPSG:31468)** and **ETRS89 / UTM32N (EPSG:25832)**, in both directions; the direction is detected from the coordinates. Fixed X=easting, Y=northing in metres; Z unchanged. Header and look follow Geodata Inspector & Cleaner: app title with version, then “About” (About me, copyright), help “(i)”, interface button and language button. German/English UI (flag button, browser language on first visit), automatic/light/dark interface in the neutral grey/blue scheme shared by Michael Radeck's public apps, self-hosted Inter font (no font CDN), two footer bars (more apps; author, version, sources, help/contact and license dialogs, imprint, Ko-fi), automatic preflight on loading, selection, reported partial exports and actual DXF geometry over an OpenStreetMap background.
 
 ## Run
 
@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `Jahr.Push.Iteration` → `26.17.1` (two-digit year · running number of the GitHub push to `main` in that year · local iteration). npm: `26.17.1`.
+Display: `Jahr.Push.Iteration` → `26.18.1` (two-digit year · running number of the GitHub push to `main` in that year · local iteration). npm: `26.18.1`.
 
 Until 26.11.16.0 the scheme was `YY.MM.feature.fix`.
 

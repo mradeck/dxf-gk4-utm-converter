@@ -1,5 +1,14 @@
 # Changelog
 
+## 26.18.1 — 2026-11-02
+
+- Look aligned with Geodata Inspector & Cleaner: header with framed mark, upper-case title with version and a short tagline, privacy chip; header actions in fixed order “About” (menu: About me, Copyright), help “(i)”, interface button, language button — all as quiet bordered buttons. The GitHub icon is gone from the header (source code stays linked in the footer).
+- New “About me” dialog (same text as in Geodata Inspector & Cleaner); “Copyright” opens the license dialog, help “(i)” opens the help / bug report / contact dialog. All dialogs share the Cleaner layout (eyebrow, title, subtitle, OK button).
+- Eyebrows, headings, panels and secondary buttons follow the Cleaner styles; the “Good to know” eyebrow is now translated.
+- Font: Inter, self-hosted via `@fontsource-variable/inter` 5.3.0 (SIL OFL 1.1, © The Inter Project Authors) and bundled; Google Fonts (DM Sans, Manrope) removed, so no request goes to a font CDN any more. Listed in the license dialog and the third-party notices.
+- “More apps”: MeasureMap now links to https://measuremap-viewer-editor.netlify.app/; Geoid Forge is renamed “Geoid-TIFF 2 PGM Converter” at https://geoid-tiff2pgm-converter.netlify.app/.
+- Transformation, preflight and export are unchanged.
+
 ## 26.17.1 — 2026-11-02
 
 - Version scheme changed from `YY.MM.feature.fix` (last 26.11.15.x/26.11.16.0) to `Jahr.Push.Iteration` (two-digit year · running number of the GitHub push to `main` in the year · iteration). The push counter is derived from the number of `main` commits in 2026 (16 so far, so this push is the 17th). The interim number 26.11.16.0 was never released.
