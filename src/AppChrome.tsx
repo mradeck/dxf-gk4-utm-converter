@@ -121,7 +121,7 @@ export const CHROME_TEXT = {
     aboutEyebrow: "Über den Entwickler",
     aboutTitle: "Über Michael Radeck",
     aboutSubtitle:
-      "DroneMediaMunich, Multikopterschule XMS, Pointcloud Manager und Geodata Inspector & Cleaner.",
+      "DroneMediaMunich, Multikopterschule XMS, Pointcloud Manager und DXF Coordinate Forge.",
     aboutP1:
       "Michael Radeck arbeitet seit vielen Jahren an der Schnittstelle von Medienproduktion, Drohnentechnik, Vermessung und Ausbildung. Als Inhaber von DroneMediaMunich, eXpert Media Solutions und der Multikopterschule XMS verbindet er praktische Flugerfahrung mit Postproduktion, Colorgrading, Photogrammetrie, GNSS-/Vermessungsworkflows und technischer Schulung.",
     aboutP2:
@@ -132,7 +132,7 @@ export const CHROME_TEXT = {
       "Eine reduzierte Online-Version mit Funktionslimits und Upgrade-/Upsell-Hinweisen ist hier verfügbar:",
     aboutDemoLink: "Pointcloud Manager – reduzierte Online-Version",
     aboutP4:
-      "Der Geodata Inspector & Cleaner überträgt diesen Ansatz auf CAD- und Geodaten: räumliche Auffälligkeiten werden lokal sichtbar, Entscheidungen bleiben nachvollziehbar und eine Bereinigung erfolgt erst nach ausdrücklicher Bestätigung.",
+      "DXF Coordinate Forge überträgt diesen Ansatz auf CAD-Pläne: DXF-Zeichnungen werden lokal im Browser vorab geprüft, von Gauß-Krüger nach ETRS89/UTM umgerechnet und auf der Karte kontrolliert.",
     aboutLinksAria: "Profile und Projekte",
     aboutXing: "XING-Profil",
     langToggle: "Sprache: Deutsch — zu Englisch wechseln",
@@ -192,7 +192,7 @@ export const CHROME_TEXT = {
     aboutEyebrow: "About the developer",
     aboutTitle: "About Michael Radeck",
     aboutSubtitle:
-      "DroneMediaMunich, Multikopterschule XMS, Pointcloud Manager and Geodata Inspector & Cleaner.",
+      "DroneMediaMunich, Multikopterschule XMS, Pointcloud Manager and DXF Coordinate Forge.",
     aboutP1:
       "Michael Radeck has been working at the intersection of media production, drone technology, surveying and training for many years. As the owner of DroneMediaMunich, eXpert Media Solutions and the Multikopterschule XMS, he combines practical flight experience with post-production, colour grading, photogrammetry, GNSS/survey workflows and technical training.",
     aboutP2:
@@ -203,7 +203,7 @@ export const CHROME_TEXT = {
       "A reduced online version with feature limits and upgrade/upsell information is available here:",
     aboutDemoLink: "Pointcloud Manager – reduced online version",
     aboutP4:
-      "Geodata Inspector & Cleaner applies the same approach to CAD and geodata: spatial anomalies are made visible locally, decisions remain traceable, and cleaning only takes place after explicit confirmation.",
+      "DXF Coordinate Forge applies the same approach to CAD drawings: DXF files are checked locally in the browser, converted from Gauss-Krüger to ETRS89/UTM and verified on the map.",
     aboutLinksAria: "Profiles and projects",
     aboutXing: "XING profile",
     langToggle: "Language: English — switch to German",
