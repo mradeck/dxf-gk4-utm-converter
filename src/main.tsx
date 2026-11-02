@@ -4,19 +4,15 @@ import {
   ArrowDownToLine,
   ArrowRight,
   Check,
-  ChevronRight,
   FileCode2,
   FileSearch,
   CodeXml as Github,
   Layers,
   Map as MapIcon,
-  Moon,
-  Sun,
   ShieldCheck,
   Upload,
   X,
   TriangleAlert,
-  Coffee,
   ExternalLink,
   Crosshair,
   LoaderCircle,
@@ -25,6 +21,19 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import { PreflightPanel } from "./PreflightPanel";
+import {
+  AppFooter,
+  CHROME_TEXT,
+  FlagDE,
+  FlagGB,
+  ThemeIcon,
+  applyThemeMode,
+  initialLang,
+  initialTheme,
+  nextTheme,
+  saveLang,
+  type ThemeMode,
+} from "./AppChrome";
 import {
   initialSelection,
   selectedEntries,
@@ -69,7 +78,7 @@ const SYSTEMS = {
     axes: "UTM32 E / N",
   },
 };
-const VERSION = "26.09.15.0";
+const VERSION = "26.11.16.0";
 const authority =
   "https://www.ldbv.bayern.de/vermessung/utm_umstellung/trans_geofach.html";
 const dict = {
@@ -526,13 +535,10 @@ function Drawing({ report }: { report: Report }) {
   );
 }
 function App() {
-  const [lang, setLang] = useState<"de" | "en">(() =>
-    localStorage.getItem("dxf-language") === "en" ? "en" : "de",
-  );
-  const [dark, setDark] = useState(
-    () => localStorage.getItem("dxf-theme") === "dark",
-  );
+  const [lang, setLang] = useState<"de" | "en">(initialLang);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(initialTheme);
   const t = dict[lang];
+  const c = CHROME_TEXT[lang];
   const [file, setFile] = useState<File | null>(null);
   const [grid, setGrid] = useState<File | null>(null);
   const [method, setMethod] = useState("beta");
@@ -559,13 +565,10 @@ function App() {
   const gridInput = useRef<HTMLInputElement>(null);
   const nameRef = useRef("drawing");
   const taskRef = useRef(0);
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("dxf-theme", dark ? "dark" : "light");
-  }, [dark]);
+  useEffect(() => applyThemeMode(themeMode), [themeMode]);
   useEffect(() => {
     document.documentElement.lang = lang;
-    localStorage.setItem("dxf-language", lang);
+    document.title = `DXF Coordinate Forge v${VERSION} · GK4 ⇄ UTM32`;
   }, [lang]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
@@ -768,18 +771,38 @@ function App() {
           <span className="version">v{VERSION}</span>
           <button
             className="icon-button"
-            onClick={() => setDark(!dark)}
-            aria-label={dark ? "Light mode" : "Dark mode"}
-            title={dark ? "Light mode" : "Dark mode"}
+            type="button"
+            onClick={() => setThemeMode(nextTheme(themeMode))}
+            aria-label={
+              themeMode === "auto"
+                ? c.themeAuto
+                : themeMode === "light"
+                  ? c.themeLight
+                  : c.themeDark
+            }
+            title={
+              themeMode === "auto"
+                ? c.themeAuto
+                : themeMode === "light"
+                  ? c.themeLight
+                  : c.themeDark
+            }
           >
-            {dark ? <Sun size={19} /> : <Moon size={19} />}
+            <ThemeIcon mode={themeMode} />
           </button>
           <button
             className="language"
-            onClick={() => setLang(lang === "de" ? "en" : "de")}
-            aria-label="Deutsch / English"
+            type="button"
+            onClick={() => {
+              const next = lang === "de" ? "en" : "de";
+              saveLang(next);
+              setLang(next);
+            }}
+            aria-label={c.langToggle}
+            title={c.langToggle}
           >
-            {lang === "de" ? "🇩🇪 DE" : "🇬🇧 EN"}
+            {lang === "de" ? <FlagDE /> : <FlagGB />}
+            <span>{lang.toUpperCase()}</span>
           </button>
           <a
             className="icon-button"
@@ -1425,45 +1448,8 @@ function App() {
             </details>
           </div>
         </section>
-        <section className="other-apps">
-          <span>{t.more}</span>
-          {[
-            ["Geoid Forge", "https://geoid-forge.netlify.app/"],
-            ["PointCloud Manager", "https://www.pointcloud-manager.com"],
-            [
-              "GPS / UTM Converter",
-              "https://mradeck.github.io/gps-utm-coordinate-converter/",
-            ],
-            [
-              "Geodata Inspector",
-              "https://geodata-inspector-cleaner.netlify.app/",
-            ],
-          ].map(([label, url]) => (
-            <a href={url} key={url} target="_blank" rel="noreferrer">
-              {label}
-              <ChevronRight size={14} />
-            </a>
-          ))}
-        </section>
       </main>
-      <footer>
-        <div>
-          <strong>{t.made}</strong>
-          <span>
-            © {new Date().getFullYear()} · v{VERSION} · {t.privacy}
-          </span>
-        </div>
-        <div>
-          <a href="/THIRD-PARTY-NOTICES.txt">Lizenzen / Licenses</a>
-          <a href="https://www.multikopterschule.de/Kontakt-Impressum/IMPRESSUM/">
-            {t.imprint}
-          </a>
-          <a href="https://ko-fi.com/mradeck/tip">
-            <Coffee size={15} />
-            Ko-fi
-          </a>
-        </div>
-      </footer>
+      <AppFooter lang={lang} version={VERSION} note={t.privacy} />
     </>
   );
 }

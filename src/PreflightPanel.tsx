@@ -472,7 +472,11 @@ export function PreflightPanel({
                         width={Math.max(q[2] - q[0], w * 0.006)}
                         height={Math.max(q[3] - q[1], h * 0.006)}
                         fill="none"
-                        stroke={selectedSet.has(e.id) ? "#35876a" : "#bd7354"}
+                        style={{
+                          stroke: selectedSet.has(e.id)
+                            ? "var(--ok)"
+                            : "var(--err)",
+                        }}
                         strokeWidth="1"
                         vectorEffect="non-scaling-stroke"
                       />

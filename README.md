@@ -2,7 +2,7 @@
 
 [Open app](https://dxf-coordinate-forge.netlify.app/) · [Public source](https://github.com/mradeck/dxf-gk4-utm-converter)
 
-Local-first browser SPA: DXF model space between **DHDN / GK4 (EPSG:31468)** and **ETRS89 / UTM32N (EPSG:25832)**, in both directions; the direction is detected from the coordinates. Fixed X=easting, Y=northing in metres; Z unchanged. German/English UI, dark/light theme, automatic preflight on loading, selection, reported partial exports and actual DXF geometry over an OpenStreetMap background.
+Local-first browser SPA: DXF model space between **DHDN / GK4 (EPSG:31468)** and **ETRS89 / UTM32N (EPSG:25832)**, in both directions; the direction is detected from the coordinates. Fixed X=easting, Y=northing in metres; Z unchanged. German/English UI (flag button, browser language on first visit), automatic/light/dark interface in the neutral grey/blue scheme shared by Michael Radeck's public apps, two footer bars (more apps; author, version, sources, help/contact and license dialogs, imprint, Ko-fi), automatic preflight on loading, selection, reported partial exports and actual DXF geometry over an OpenStreetMap background.
 
 ## Run
 
@@ -72,7 +72,7 @@ GitHub Actions (`.github/workflows/tests.yml`) runs the build, the Python tests 
 
 ## Versioning
 
-Display: `YY.MM.feature.fix` → `26.09.15.0`. npm: `26.9.15`.
+Display: `YY.MM.feature.fix` → `26.11.16.0`. npm: `26.11.16`.
 
 ## License
 

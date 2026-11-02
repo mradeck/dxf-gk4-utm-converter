@@ -1,5 +1,13 @@
 # Changelog
 
+## 26.11.16.0 — 2026-11-02
+
+- Unified look of Michael Radeck's public apps: the green colour scheme is replaced by the neutral grey/blue scheme (light and dark), including the app icon; status colours stay semantic (ok/warning/error).
+- Interface button cycles automatic (follows the system setting) / light / dark; the choice is stored and applied before the first paint, so nothing flashes. A deliberately chosen dark theme or English UI from earlier versions is carried over.
+- Language button shows a vector flag (DE black-red-gold, GB Union Jack) plus “DE”/“EN”; on first visit the browser language decides.
+- Two footer bars: “More apps” (Geodata Inspector & Cleaner, GeoTIFF Inspector, MeasureMap, Geoid Forge, PointCloud Manager, GPS / UTM Converter, SkyCheck, michael-radeck.de) and author, year, version with OpenStreetMap, BeTA2007 (LDBV), source code, help / bug report / contact (dialog, version in the mail subject), licenses / copyright (dialog with link to the full notices), imprint and Ko-fi.
+- Window title shows the version. Transformation, preflight and export are unchanged.
+
 ## 26.09.15.0 — 2026-10-01
 
 - Step 04: removed duplicates appear as a fourth, highlighted tile “Object duplicates removed”; the partial-export notice no longer counts them and only appears when objects are really missing.

@@ -1,22 +1,75 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750;800&display=swap");
 :root {
   font-family: "DM Sans", sans-serif;
-  color: #263c36;
-  background: #f6f7f2;
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
-  --bg: #f6f7f2;
+  /* Neutrales Farbschema (Grau/Blau) der öffentlichen Apps von Michael Radeck.
+     Hell ist Grundlage, dunkel per data-theme="dark" oder Systemeinstellung
+     ("automatisch" = kein data-theme). */
+  --bg: #f3f5f8;
   --panel: #fff;
-  --ink: #263c36;
-  --muted: #738079;
-  --border: #e1e6df;
-  --accent: #347960;
-  --deep: #164f3e;
-  --soft: #edf3eb;
-  --preview: #f1f4ee;
-  --warning: #f6f0df;
-  --warning-ink: #806b32;
-  --shadow: 0 3px 12px #172c1505;
+  --panel2: #eef1f5;
+  --ink: #1b2430;
+  --text: #1b2430;
+  --muted: #5d6a79;
+  --border: #d4dae2;
+  --accent: #1f6fd1;
+  --deep: #1a5fb4;
+  --soft: #eef1f5;
+  --preview: #eef1f5;
+  --ok: #23824f;
+  --warn: #a86400;
+  --err: #c0392b;
+  --warning: #fbf2e2;
+  --warning-ink: #8a5200;
+  --on-accent: #fff;
+  --shadow: 0 3px 12px #1b243008;
   color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14171c;
+  --panel: #1d2229;
+  --panel2: #232a33;
+  --ink: #e6ebf1;
+  --text: #e6ebf1;
+  --muted: #93a0af;
+  --border: #333c48;
+  --accent: #4da3ff;
+  --deep: #4da3ff;
+  --soft: #232a33;
+  --preview: #181c22;
+  --ok: #46c07a;
+  --warn: #e0a13c;
+  --err: #e05c5c;
+  --warning: #2e2719;
+  --warning-ink: #e0a13c;
+  --on-accent: #0f1620;
+  --shadow: 0 3px 12px #0003;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c;
+    --panel: #1d2229;
+    --panel2: #232a33;
+    --ink: #e6ebf1;
+    --text: #e6ebf1;
+    --muted: #93a0af;
+    --border: #333c48;
+    --accent: #4da3ff;
+    --deep: #4da3ff;
+    --soft: #232a33;
+    --preview: #181c22;
+    --ok: #46c07a;
+    --warn: #e0a13c;
+    --err: #e05c5c;
+    --warning: #2e2719;
+    --warning-ink: #e0a13c;
+    --on-accent: #0f1620;
+    --shadow: 0 3px 12px #0003;
+  color-scheme: dark;
+  }
 }
 .preflight {
   min-width: 0;
@@ -223,21 +276,6 @@ input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
-:root[data-theme="dark"] {
-  --bg: #111c19;
-  --panel: #192722;
-  --ink: #e0e8dd;
-  --muted: #98aaa0;
-  --border: #304138;
-  --accent: #aed788;
-  --deep: #aed788;
-  --soft: #24372a;
-  --preview: #14231c;
-  --warning: #332f20;
-  --warning-ink: #d6c58f;
-  --shadow: 0 3px 12px #0001;
-  color-scheme: dark;
-}
 * {
   box-sizing: border-box;
 }
@@ -293,8 +331,7 @@ button svg {
   pointer-events: none;
 }
 header,
-main,
-footer {
+main {
   max-width: 1440px;
   margin: auto;
 }
@@ -454,7 +491,7 @@ h1 em {
 .crs-dot {
   width: 12px;
   height: 12px;
-  border: 2px solid #9caba1;
+  border: 2px solid var(--muted);
   border-radius: 50%;
   background: var(--bg);
 }
@@ -575,7 +612,7 @@ h2 {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  border: 1.5px dashed #c8d8c7;
+  border: 1.5px dashed var(--border);
   border-radius: 11px;
   padding: 27px 12px 23px;
   background: var(--bg);
@@ -664,11 +701,9 @@ select {
 .primary {
   border: 1px solid var(--deep);
   background: var(--deep);
-  color: var(--panel);
+  color: var(--on-accent);
 }
-:root[data-theme="dark"] .primary {
-  color: #183026;
-}
+
 .primary:hover:not(:disabled) {
   filter: brightness(1.12);
 }
@@ -769,7 +804,7 @@ select {
   border-radius: 10px;
   padding: 16px;
   z-index: 1000;
-  box-shadow: 0 6px 25px #0002;
+  box-shadow: 0 6px 25px #0003;
   font-size: 12px;
   font-family: "DM Sans", sans-serif;
   font-weight: 400;
@@ -932,7 +967,7 @@ select {
   color: var(--muted);
 }
 .status-title.blocked {
-  color: #ba5b4c;
+  color: var(--err);
 }
 .stats {
   display: grid;
@@ -1058,9 +1093,9 @@ input[type="checkbox"] {
 .error-box {
   display: flex;
   gap: 12px;
-  color: #b85149;
+  color: var(--err);
   background: var(--panel);
-  border: 1px solid #b8514944;
+  border: 1px solid color-mix(in srgb, var(--err) 30%, transparent);
   padding: 18px;
   border-radius: 10px;
   font-size: 13px;
@@ -1122,51 +1157,6 @@ th {
 }
 .knowledge a {
   color: var(--accent);
-}
-.other-apps {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 17px;
-  padding: 25px 0;
-  font-size: 10px;
-}
-.other-apps > span {
-  font-weight: 600;
-  color: var(--muted);
-  margin-right: 9px;
-}
-.other-apps a {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-footer {
-  border-top: 1px solid var(--border);
-  padding: 25px 54px 35px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 25px;
-  font-size: 10px;
-  color: var(--muted);
-}
-footer strong {
-  font-weight: 500;
-  color: var(--ink);
-  display: block;
-  margin-bottom: 7px;
-}
-footer > div:last-child {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-footer a {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
 }
 .progress {
   padding: 16px 0 0;
@@ -1242,9 +1232,6 @@ footer a {
   }
   .chip {
     display: none;
-  }
-  footer {
-    padding: 25px 30px;
   }
   .info-pop {
     width: 260px;
@@ -1440,18 +1427,6 @@ footer a {
   .knowledge h3 {
     margin-top: 8px;
   }
-  .other-apps {
-    gap: 15px;
-  }
-  .other-apps > span {
-    width: 100%;
-  }
-  footer {
-    padding: 23px 18px;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 17px;
-  }
   .download-row > .primary {
     width: 100%;
   }
@@ -1466,4 +1441,134 @@ footer a {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Sprach- und Interface-Knopf (wie geotiff-inspector) */
+.flag {
+  width: 21px;
+  height: 14px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+
+/* Fußleisten (gemeinsames Muster der öffentlichen Apps) */
+.app-footer {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  margin-top: 24px;
+}
+.related-apps,
+.footer-meta,
+.footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 7px;
+}
+.related-apps {
+  padding: 8px 16px;
+}
+.related-apps strong {
+  color: var(--muted);
+  font-weight: 550;
+  margin-right: 2px;
+}
+.footer-meta {
+  justify-content: space-between;
+  padding: 7px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+.related-apps a,
+.footer-links a,
+.footer-links button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--panel2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+}
+.app-footer a:hover,
+.app-footer button:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* Dialoge Hilfe / Lizenzen */
+.app-dialog {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.dlg-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.dlg-head button,
+.dlg-body .btn {
+  background: var(--panel2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  text-decoration: none;
+}
+.dlg-head button:hover,
+.dlg-body .btn:hover {
+  border-color: var(--accent);
+}
+.dlg-body {
+  padding: 14px 18px 18px;
+}
+.dlg-body .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.dlg-body .addr {
+  color: var(--accent);
+  font-weight: 600;
+}
+.dlg-muted {
+  color: var(--muted);
+}
+.dlg-body a:not(.btn) {
+  color: var(--accent);
+}
+.lic-table {
+  font-size: 12px;
+  white-space: normal;
+}
+.lic-table th {
+  width: 38%;
+  vertical-align: top;
 }

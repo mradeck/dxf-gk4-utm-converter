@@ -3,12 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#123f36" />
+    <meta name="theme-color" content="#1d2229" />
     <meta
       name="description"
       content="DXF-Pläne lokal im Browser analysieren und von Gauß-Krüger GK4 nach ETRS89 / UTM32 transformieren. Mit NTv2-Gitter und Prüfprotokoll."
     />
-    <title>DXF Coordinate Forge · GK4 → UTM32</title>
+    <title>DXF Coordinate Forge v26.11.16.0 · GK4 ⇄ UTM32</title>
+    <script>
+      // Interface-Farbe und Sprache vor dem ersten Zeichnen setzen (kein Aufblitzen).
+      // Alte Schlüssel (dxf-theme / dxf-language) wurden beim ersten Aufruf automatisch
+      // auf "light"/"de" gesetzt; übernommen wird nur eine bewusst gewählte Abweichung.
+      (function () {
+        try {
+          var th = localStorage.getItem("dxf.theme");
+          if (th === null && localStorage.getItem("dxf-theme") === "dark") th = "dark";
+          if (th === "light" || th === "dark") {
+            document.documentElement.setAttribute("data-theme", th);
+            localStorage.setItem("dxf.theme", th);
+          }
+          var lg = localStorage.getItem("dxf.lang");
+          if (lg === null && localStorage.getItem("dxf-language") === "en") lg = "en";
+          if (lg === "de" || lg === "en") localStorage.setItem("dxf.lang", lg);
+          document.documentElement.lang =
+            lg === "de" || lg === "en" ? lg : /^de\b/i.test(navigator.language || "") ? "de" : "en";
+        } catch (e) {
+          /* ohne Speicher: Systemvorgabe */
+        }
+      })();
+    </script>
     <link rel="icon" href="/favicon.svg" />
   </head>
   <body>
