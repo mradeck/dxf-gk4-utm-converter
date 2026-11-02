@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.19.1 — 2026-11-02
+
+- “About me” now describes DXF Coordinate Forge instead of Geodata Inspector & Cleaner (DE/EN).
+
 ## 26.18.3 — 2026-11-02
 
 - Favicon: variant with a thicker stroke (more legible at 16 px).
