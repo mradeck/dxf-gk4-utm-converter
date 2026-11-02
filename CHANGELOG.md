@@ -1,7 +1,8 @@
 # Changelog
 
-## 26.11.16.0 — 2026-11-02
+## 26.17.1 — 2026-11-02
 
+- Version scheme changed from `YY.MM.feature.fix` (last 26.11.15.x/26.11.16.0) to `Jahr.Push.Iteration` (two-digit year · running number of the GitHub push to `main` in the year · iteration). The push counter is derived from the number of `main` commits in 2026 (16 so far, so this push is the 17th). The interim number 26.11.16.0 was never released.
 - Unified look of Michael Radeck's public apps: the green colour scheme is replaced by the neutral grey/blue scheme (light and dark), including the app icon; status colours stay semantic (ok/warning/error).
 - Interface button cycles automatic (follows the system setting) / light / dark; the choice is stored and applied before the first paint, so nothing flashes. A deliberately chosen dark theme or English UI from earlier versions is carried over.
 - Language button shows a vector flag (DE black-red-gold, GB Union Jack) plus “DE”/“EN”; on first visit the browser language decides.
