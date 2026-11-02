@@ -22,7 +22,7 @@ from pyproj import Transformer, network
 from preflight import read_document, inspect_document, issue, QGIS_SYMBOL, EASTING, NORTHING, LABELS
 
 network.set_network_enabled(False)
-VERSION = "26.17.1"
+VERSION = "26.18.3"
 LIMIT = 1_000_000
 SUPPORTED = {"POINT", "LINE", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ARC", "ELLIPSE", "SPLINE", "3DFACE", "SOLID", "TRACE", "MESH", "TEXT", "MTEXT", "HATCH", "INSERT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "MULTILEADER", "MLEADER"}
 
